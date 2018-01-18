@@ -52,5 +52,13 @@ func main() {
 
 	finder := newWordFinder(surl)
 	finder.run()
+	errs := finder.getErrors()
+	if errs == nil {
+		fmt.Printf("No errors occurred in run.\n")
+	} else {
+		for _, r := range finder.records {
+			fmt.Printf("'%s': error occurred: %v\n", r.url, r.err)
+		}
+	}
 	finder.printResults()
 }

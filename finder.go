@@ -79,23 +79,22 @@ func (wf *WordFinder) run() {
 	// Prime the pump by feeding the start url into the work channel.
 	tasks <- SearchRecord{url: wf.startURL.String()}
 
-	// Loop unitl there is no more work.  By keeping a count, we know
+	// Loop until there is no more work.  By keeping a count, we know
 	// when there is no more work left.  The loop decrements once each
 	// time through to balance the result of adding a new search task.
-	// This counting technique is demonstrated in Donovan and Kernighan's
-	// "The Go Programming Language" book.
 	for cnt := 1; cnt > 0; cnt-- {
 
 		// At the start of each loop iteration, we block on the "filter"
-		// channel, which contains results from each page scan (all the links
-		// found for a page are in a single slice).  The filter also
-		// removes any links already visited.
+		// channel, which contains results from each page scan (all the
+		// links found for a page are in a single slice).  The filter
+		// also removes any links already visited.
 		l := <-wf.filter
 
 		for _, link := range l {
 			if wf.visited[link] == false {
 				wf.visited[link] = true
-				// Every link sent into the "task" channel adds one to the count.
+				// Every link sent into the "task" channel
+				// adds one to the count.
 				cnt++
 				tasks <- SearchRecord{url: link}
 			}
@@ -133,12 +132,6 @@ func (wf *WordFinder) addLinkData(sr *SearchRecord, wds map[string]int,
 
 // Show any errors and the top word counts.
 func (wf *WordFinder) printResults() {
-	for _, r := range wf.records {
-		if r.err != nil {
-			fmt.Printf("'%s': error occurred: %v ", r.url, r.err)
-		}
-	}
-
 	sorter := make(kvSorter, len(wf.words))
 	i := 0
 	for k, v := range wf.words {
@@ -151,6 +144,18 @@ func (wf *WordFinder) printResults() {
 	for i := 0; i < *totWords && i < len(sorter); i++ {
 		fmt.Printf("[%d] %s: %d\n", i+1, sorter[i].key, sorter[i].value)
 	}
+}
+
+// Returns the search records that contained errors or
+// nil if no errors occurred.
+func (wf *WordFinder) getErrors() []*SearchRecord {
+	var sr []*SearchRecord
+	for _, r := range wf.records {
+		if r.err != nil {
+			sr = append(sr, r)
+		}
+	}
+	return sr
 }
 
 // The following methods are used to to sort the histogram by value.
