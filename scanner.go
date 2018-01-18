@@ -190,7 +190,6 @@ func convertUnicodeEscapes(text string) string {
 		// Construct the part of the converted string up to and
 		// including the current converted Unicode bytes.  Then
 		// remember where to resume next time through the loop.
-		//res = append(res, b[svloc:d1[0]]...)
 		res = append(append(res, b[svloc:d1[0]]...), []byte(js)...)
 		svloc = d1[1]
 	}
