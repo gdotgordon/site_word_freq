@@ -37,7 +37,7 @@ var (
 	// These need to be converted to a Unicode byte sequence because as read
 	// they are not recognized by the compiler as a Unicode character, just
 	// a plain sequence of characters.
-	uliteral = regexp.MustCompile(`\\u[0-9][0-9][0-9][0-9]`)
+	uliteral = regexp.MustCompile(`\\u[0-9a-f][0-9a-f][0-9a-f][0-9a-f]`)
 )
 
 func (sr *SearchRecord) processLink(wf *WordFinder) {
