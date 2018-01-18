@@ -60,5 +60,10 @@ func main() {
 			fmt.Printf("'%s': error occurred: %v\n", r.url, r.err)
 		}
 	}
-	finder.printResults()
+
+	res := finder.getResults()
+	fmt.Printf("top %d word totals:\n", *totWords)
+	for i, kv := range res {
+		fmt.Printf("[%d] %s: %d\n", i+1, kv.key, kv.value)
+	}
 }

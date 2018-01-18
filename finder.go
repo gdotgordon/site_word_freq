@@ -3,7 +3,6 @@
 package main
 
 import (
-	"fmt"
 	"net/url"
 	"sort"
 	"strings"
@@ -131,7 +130,7 @@ func (wf *WordFinder) addLinkData(sr *SearchRecord, wds map[string]int,
 }
 
 // Show any errors and the top word counts.
-func (wf *WordFinder) printResults() {
+func (wf *WordFinder) getResults() []kvPair {
 	sorter := make(kvSorter, len(wf.words))
 	i := 0
 	for k, v := range wf.words {
@@ -139,11 +138,11 @@ func (wf *WordFinder) printResults() {
 		i++
 	}
 	sort.Sort(sorter)
-
-	fmt.Printf("top word totals:\n")
-	for i := 0; i < *totWords && i < len(sorter); i++ {
-		fmt.Printf("[%d] %s: %d\n", i+1, sorter[i].key, sorter[i].value)
+	cnt := *totWords
+	if len(sorter) < cnt {
+		cnt = len(sorter)
 	}
+	return sorter[:cnt]
 }
 
 // Returns the search records that contained errors or

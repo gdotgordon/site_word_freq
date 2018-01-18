@@ -81,15 +81,17 @@ func (sr *SearchRecord) processLink(wf *WordFinder) {
 		case html.StartTagToken:
 			// If the next tag is an anchor, extract the 'href'.
 			tn, hasAttr := z.TagName()
-			if (len(tn) != 1 && tn[0] != 'a') || !hasAttr {
+			if (len(tn) != 1 || tn[0] != 'a') || !hasAttr {
 				continue
 			}
 			inAnchor = true
+			more := true
 			for {
-				k, v, more := z.TagAttr()
 				if !more {
 					break
 				}
+				k, v, m := z.TagAttr()
+				more = m
 
 				// Skip if it's not an 'href'.
 				attr := string(k)
