@@ -2,7 +2,7 @@
 Crawls a web site and returns the most commonly occurring words longer than a specified length.
 
 This program finds the most frequently occurring words of a
-specified minimum length for a given site.  It is essentailly a
+specified minimum length for a given site.  It is essentially a
 web crawler that makes its best effort to stay within the hostname
 of the original site.  On a given page, it both scans for text, for
 which it builds a frequncy histogram, plus it extracts the "href"
