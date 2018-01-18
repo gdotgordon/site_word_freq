@@ -34,7 +34,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
 	"strings"
@@ -44,7 +43,8 @@ import (
 var (
 	concurrency = flag.Int("concurrency", 5,
 		"number of active concurrent goroutines")
-	minLen = flag.Int("min_len", 10, "the minimum word length to track")
+	minLen    = flag.Int("min_len", 10, "the minimum word length to track")
+	tot_words = flag.Int("tot_words", 10, "show the top 'this many' words")
 )
 
 func main() {
@@ -114,7 +114,6 @@ func main() {
 			}
 		}
 	}
-	log.Printf("Exited processing loop!\n")
 
 	// Don't leak goroutines (yeah, it's a demo, but still).
 	close(tasks)

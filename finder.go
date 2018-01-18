@@ -63,9 +63,9 @@ func (wf *WordFinder) printResults() {
 	}
 	sort.Sort(sorter)
 
-	fmt.Printf("top ten word totals:\n")
-	for i := 0; i < 10; i++ {
-		fmt.Printf("%s: %d\n", sorter[i].key, sorter[i].value)
+	fmt.Printf("top word totals:\n")
+	for i := 0; i < *tot_words && i < len(sorter); i++ {
+		fmt.Printf("[%d] %s: %d\n", i+1, sorter[i].key, sorter[i].value)
 	}
 }
 
