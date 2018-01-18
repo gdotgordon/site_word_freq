@@ -10,6 +10,10 @@ import (
 	"sync"
 )
 
+// Used to determine a channel buffer size.  This is a swag that each
+// visited page ma generate this number of new links to process.
+const concurrencyMultiplier = 5
+
 // The WordFinder is the struct that controls the overall processing.
 // It collates the results to get the longest word at the end.
 type WordFinder struct {
@@ -30,6 +34,9 @@ type kvPair struct {
 
 type kvSorter []kvPair
 
+// Ensure we've implemented all the sort.Interface methods.
+var _ sort.Interface = (*kvSorter)(nil)
+
 // Creates a new WordFinder with the given start URL.
 func newWordFinder(startURL *url.URL) *WordFinder {
 
@@ -48,6 +55,57 @@ func newWordFinder(startURL *url.URL) *WordFinder {
 		target:   target,
 		filter:   make(chan []string, 5*(*concurrency)),
 	}
+}
+
+// This is the main run loop from the crawler.  It creates the
+// worker goroutines, filters and submits new URL processing tasks,
+// and waits for the entire process to complete before returning.
+func (wf *WordFinder) run() {
+
+	// Create and launch the goroutines.
+	tasks := make(chan SearchRecord, concurrencyMultiplier*(*concurrency))
+	var wg sync.WaitGroup
+	for i := 0; i < *concurrency; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			for rec := range tasks {
+				rec.processLink(wf)
+			}
+		}()
+	}
+
+	// Prime the pump by feeding the start url into the work channel.
+	tasks <- SearchRecord{url: wf.startURL.String()}
+
+	// Loop unitl there is no more work.  By keeping a count, we know
+	// when there is no more work left.  The loop decrements once each
+	// time through to balance the result of adding a new search task.
+	// This counting technique is demonstrated in Donovan and Kernighan's
+	// "The Go Programming Language" book.
+	for cnt := 1; cnt > 0; cnt-- {
+
+		// At the start of each loop iteration, we block on the "filter"
+		// channel, which contains results from each page scan (all the links
+		// found for a page are in a single slice).  The filter also
+		// removes any links already visited.
+		l := <-wf.filter
+
+		for _, link := range l {
+			if wf.visited[link] == false {
+				wf.visited[link] = true
+				// Every link sent into the "task" channel adds one to the count.
+				cnt++
+				tasks <- SearchRecord{url: link}
+			}
+		}
+	}
+
+	// Don't leak goroutines (yeah, it's a demo, but still).
+	close(tasks)
+	close(wf.filter)
+	wg.Wait()
 }
 
 // When a goroutine is finished processing a link, it transfers it's

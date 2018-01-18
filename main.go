@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"sync"
 )
 
 var (
@@ -52,47 +51,6 @@ func main() {
 	}
 
 	finder := newWordFinder(surl)
-
-	tasks := make(chan SearchRecord, 5*(*concurrency))
-	var wg sync.WaitGroup
-	for i := 0; i < *concurrency; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			for rec := range tasks {
-				rec.processLink(finder)
-			}
-		}()
-	}
-
-	// Prime the pump by feeding the start url into the work channel.
-	// Loop unitl there is no more work.  By keeping a count, we know
-	// when there is no more work left.
-	//
-	// Every link sent into the "task" channel adds one to the count.
-	// At the start of each loop iteration, we block on the "filter"
-	// channel, which contains esults from each page scan (all the links
-	// found for a page are in a single slice)  The loop decrements once
-	// each time through to balance the result of adding a new search task.
-	// Note, the filter is so named, as we skip any previously scanned pages
-	// This counting technique is demonstrated in Donovan and Kernighan's
-	// "The Go Programming Language" book.
-	tasks <- SearchRecord{url: startURL}
-	for cnt := 1; cnt > 0; cnt-- {
-		l := <-finder.filter
-		for _, link := range l {
-			if finder.visited[link] == false {
-				finder.visited[link] = true
-				cnt++
-				tasks <- SearchRecord{url: link}
-			}
-		}
-	}
-
-	// Don't leak goroutines (yeah, it's a demo, but still).
-	close(tasks)
-	wg.Wait()
-
+	finder.run()
 	finder.printResults()
 }
