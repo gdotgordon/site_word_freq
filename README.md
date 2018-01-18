@@ -18,7 +18,7 @@ input parameters into the task channel.  Using this technique, we
 can clearly sort out which errors are tied to which URLs.
 
 One of the challenges in implementing a recursive-style algorithm
-such as a crawler using a fixed thread pool, is determining when the
+such as a crawler using a fixed thread pool is determining when the
 processing is complete.
 
 The program uses two channels, one for the goroutines to read URLs
