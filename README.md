@@ -33,5 +33,5 @@ task queue, and decrements by one before it is about to read the results
 channel.  This counting technique is demonstrated in Donovan and Kernighan's
 "The Go Programming Language" book.
 
-External dependencies: The scanner uses the "golang.org/x/net/html" HTMP parser package,
+External dependencies: The scanner uses the "golang.org/x/net/html" HTML parser package,
 so you'll need that to build.
