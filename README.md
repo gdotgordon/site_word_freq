@@ -1,6 +1,9 @@
 # site_word_frequency
 Crawls a web site and returns the most commonly occurring words longer than a specified length.
 
+External dependencies: The scanner uses the *"golang.org/x/net/html"* HTML parser package,
+so you'll need that to build.
+
 This program finds the most frequently occurring words of a
 specified minimum length for a given site.  It is essentially a
 web crawler that makes its best effort to stay within the hostname
@@ -8,6 +11,11 @@ of the original site.  On a given page, it both scans for text, for
 which it builds a frequncy histogram, plus it extracts the "href"
 links for further processing.  At the end, the accumulated word count
 results for all sites are sorted, with the most frequent ones displayed.
+
+Usage: `crawl <web site>`
+ 
+I tested this with "https://www.golang.org/" as the site name, and it completed
+in 30-45 seconds on a MacBook Pro.
 
 Architecturally it uses the following elements:
 - A configurable fixed number of goroutines.  This is important
@@ -32,6 +40,3 @@ to be processed.  It adds 1 to the count for each record sent to the
 task queue, and decrements by one before it is about to read the results
 channel.  This counting technique is demonstrated in Donovan and Kernighan's
 "The Go Programming Language" book.
-
-External dependencies: The scanner uses the "golang.org/x/net/html" HTML parser package,
-so you'll need that to build.
