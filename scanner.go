@@ -142,8 +142,6 @@ func (sr *SearchRecord) processLink(wf *WordFinder) {
 // them in the map.
 func (sr *SearchRecord) processText(text string, wds map[string]int) {
 	text = html.UnescapeString(text)
-	// TODO - deal with general 'literal' unicode escape replacement.
-	//text = strings.Replace(text, "\\u0022", "\"", -1)
 	text = convertUnicodeEscapes(text)
 	res := words.FindAllString(text, -1)
 	if len(res) > 0 {
