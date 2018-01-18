@@ -1,4 +1,4 @@
-# site_word_frequency
+# site_word_freq
 Crawls a web site and returns the most commonly occurring words longer than a specified length.
 
 External dependencies: The scanner uses the *"golang.org/x/net/html"* HTML parser package,
