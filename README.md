@@ -14,8 +14,10 @@ results for all sites are sorted, with the most frequent ones displayed.
 
 Usage: `crawl <web site>`
  
-I tested this with "https://www.golang.org/" as the site name, and it completed
-in 30-45 seconds on a MacBook Pro.
+I found the well-known commercial websites to be to large to viably crawl
+completely in reasonable time for a demo.  If you find the website of
+an individual proprietor with a small site, as I managed to, the traversal
+will only take a few seconds.
 
 Architecturally it uses the following elements:
 - A configurable fixed number of goroutines.  This is important
