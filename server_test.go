@@ -70,6 +70,9 @@ func TestServer(t *testing.T) {
 	if results[0].key != "parallelogram" || results[0].value != 3 {
 		t.Fatalf("unexpected frequency counts observed\n")
 	}
+	if results[1].key != "tarantulas" || results[1].value != 2 {
+		t.Fatalf("unexpected frequency counts observed\n")
+	}
 	if results[2].key != "ABCDEFGHIJ" || results[2].value != 1 {
 		t.Fatalf("unexpected frequency counts observed\n")
 	}
