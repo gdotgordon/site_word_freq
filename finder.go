@@ -41,8 +41,8 @@ var _ sort.Interface = (*kvSorter)(nil)
 func newWordFinder(startURL *url.URL) *WordFinder {
 
 	// Restrict crawling to within initial site for a reasonable demo.
-	// So a site that has our host in it (we don't need the www part
-	// to comapre) is a link we'll follow/
+	// If a link has our host name in it (we don't need the www part
+	// to comapre) this is a link we'll follow.
 	target := startURL.Hostname()
 	if strings.HasPrefix(target, "www.") {
 		target = target[4:]
