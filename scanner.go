@@ -45,8 +45,6 @@ func (sr *SearchRecord) processLink(wf *WordFinder) {
 	// Read the url contents and parse the line to get embedded
 	// text and extract links for future processing.
 	log.Printf("Processing link: '%s'\n", sr.url)
-	links := make([]string, 0)
-	wds := make(map[string]int)
 	resp, err := http.Get(sr.url)
 	if err != nil {
 		log.Printf("error opening '%s': %v\n", sr.url, err)
@@ -56,9 +54,10 @@ func (sr *SearchRecord) processLink(wf *WordFinder) {
 	}
 	defer resp.Body.Close()
 
+	links := make([]string, 0)
+	wds := make(map[string]int)
 	br := bufio.NewReader(resp.Body)
 	z := html.NewTokenizer(br)
-
 	inAnchor := false
 	for {
 		tt := z.Next()
