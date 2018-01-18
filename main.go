@@ -43,8 +43,8 @@ import (
 var (
 	concurrency = flag.Int("concurrency", 5,
 		"number of active concurrent goroutines")
-	minLen    = flag.Int("min_len", 10, "the minimum word length to track")
-	tot_words = flag.Int("tot_words", 10, "show the top 'this many' words")
+	minLen   = flag.Int("min_len", 10, "the minimum word length to track")
+	totWords = flag.Int("tot_words", 10, "show the top 'this many' words")
 )
 
 func main() {
@@ -56,11 +56,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	startUrl := flag.Arg(0)
-	surl, err := url.Parse(startUrl)
+	startURL := flag.Arg(0)
+	surl, err := url.Parse(startURL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "The url '%s' is not syntactically valid\n",
-			startUrl)
+			startURL)
 		os.Exit(1)
 	}
 
@@ -75,7 +75,7 @@ func main() {
 	finder := &WordFinder{
 		visited:  make(map[string]bool),
 		words:    make(map[string]int),
-		startUrl: surl,
+		startURL: surl,
 		target:   target,
 		filter:   make(chan []string, 5*(*concurrency)),
 	}
@@ -103,7 +103,7 @@ func main() {
 	// found for a page are in a single slice)  The loop decrements once
 	// each time through to balance the result of adding a new search task.
 	// Note, the filter is so named, as we skip any previously scanned pages.
-	tasks <- SearchRecord{url: startUrl}
+	tasks <- SearchRecord{url: startURL}
 	for cnt := 1; cnt > 0; cnt-- {
 		l := <-finder.filter
 		for _, link := range l {

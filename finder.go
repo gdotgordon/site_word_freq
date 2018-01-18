@@ -14,7 +14,7 @@ type WordFinder struct {
 	visited  map[string]bool
 	words    map[string]int
 	target   string
-	startUrl *url.URL
+	startURL *url.URL
 	filter   chan ([]string)
 	mu       sync.Mutex
 }
@@ -64,7 +64,7 @@ func (wf *WordFinder) printResults() {
 	sort.Sort(sorter)
 
 	fmt.Printf("top word totals:\n")
-	for i := 0; i < *tot_words && i < len(sorter); i++ {
+	for i := 0; i < *totWords && i < len(sorter); i++ {
 		fmt.Printf("[%d] %s: %d\n", i+1, sorter[i].key, sorter[i].value)
 	}
 }

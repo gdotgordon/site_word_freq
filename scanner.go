@@ -123,7 +123,7 @@ func (sr *SearchRecord) processLink(wf *WordFinder) {
 
 				// Ensure we have a full url.
 				if !u.IsAbs() {
-					u = wf.startUrl.ResolveReference(u)
+					u = wf.startURL.ResolveReference(u)
 					av = u.String()
 				}
 
