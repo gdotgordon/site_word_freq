@@ -11,7 +11,7 @@ import (
 )
 
 // Used to determine a channel buffer size.  This is a swag that each
-// visited page ma generate this number of new links to process.
+// visited page may generate this number of new links to process.
 const concurrencyMultiplier = 5
 
 // The WordFinder is the struct that controls the overall processing.
