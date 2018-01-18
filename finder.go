@@ -53,7 +53,7 @@ func newWordFinder(startURL *url.URL) *WordFinder {
 		words:    make(map[string]int),
 		startURL: startURL,
 		target:   target,
-		filter:   make(chan []string, 5*(*concurrency)),
+		filter:   make(chan []string, concurrencyMultiplier*(*concurrency)),
 	}
 }
 
