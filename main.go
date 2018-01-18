@@ -14,21 +14,10 @@
 // input parameters into the task channel.  Using this technique, we
 // can clearly sort out which errors are tied to which URLs.
 //
-// One of the challenges in implementing a recursive-style algorithm
-// such as a crawler using a fixed thread pool is determining when the
-// processing is complete.
-//
 // The program uses two channels, one for the goroutines to read URLs
 // to process, and another for the results to be sent back to the main
 // processing loop.  We use a looping and counting techique that is used
 // to determine when we're done processing.
-//
-// The code loops, first waiting for new URLs to process, removing any sites
-// already visited, and then sends the unique urls to the task channel
-// to be processed.  It adds 1 to the count for each record sent to the
-// task queue, and decrements by one before it is about to read the results
-// channel.  This counting technique is demonstrated in Donovan and
-// Kernighan's "The Go Programming Language" book.
 package main
 
 import (
@@ -36,7 +25,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"strings"
 	"sync"
 )
 
@@ -49,7 +37,6 @@ var (
 
 func main() {
 	flag.Parse()
-
 	if flag.NArg() < 1 {
 		fmt.Fprintf(os.Stderr,
 			"usage: %s [-concurrency #] [-min_len #] <start url>\n", os.Args[0])
@@ -64,21 +51,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Restrict crawling to within initial site for a reasonable demo.
-	// So a site that has our host in it (we don't need the www part
-	// to comapre) is a link we'll follow/
-	target := surl.Hostname()
-	if strings.HasPrefix(target, "www.") {
-		target = target[4:]
-	}
-
-	finder := &WordFinder{
-		visited:  make(map[string]bool),
-		words:    make(map[string]int),
-		startURL: surl,
-		target:   target,
-		filter:   make(chan []string, 5*(*concurrency)),
-	}
+	finder := newWordFinder(surl)
 
 	tasks := make(chan SearchRecord, 5*(*concurrency))
 	var wg sync.WaitGroup
@@ -102,7 +75,9 @@ func main() {
 	// channel, which contains esults from each page scan (all the links
 	// found for a page are in a single slice)  The loop decrements once
 	// each time through to balance the result of adding a new search task.
-	// Note, the filter is so named, as we skip any previously scanned pages.
+	// Note, the filter is so named, as we skip any previously scanned pages
+	// This counting technique is demonstrated in Donovan and Kernighan's
+	// "The Go Programming Language" book.
 	tasks <- SearchRecord{url: startURL}
 	for cnt := 1; cnt > 0; cnt-- {
 		l := <-finder.filter

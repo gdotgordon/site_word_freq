@@ -1,3 +1,7 @@
+// The scanner is the task launched from the worker goroutines to
+// parse a given link and extract and count embdeded words, and also
+// to find embedded links and send those to the work channel to be
+// processed by the same goroutines.
 package main
 
 import (
@@ -172,26 +176,21 @@ func convertUnicodeEscapes(text string) string {
 	var svloc int
 	for _, d1 := range si {
 		// Process next Unicode sequence.
-		var js string
-		var tb []byte
-
 		// Surround the sequence in double quotes and decode to bytes.
 		// The surrounding quotes will automatically be removed.
-		qb := []byte{'"'}
-		qb = append(qb, b[d1[0]:d1[1]]...)
-		qb = append(qb, '"')
+		qb := append(append([]byte{'"'}, b[d1[0]:d1[1]]...), '"')
+		var js string
 		err := json.Unmarshal(qb, &js)
 		if err != nil {
 			log.Printf("warning: unmarshal error: %v\n", err)
 			return text
 		}
 
-		// Construct hthe part of the converted string up to and
+		// Construct the part of the converted string up to and
 		// including the current converted Unicode bytes.  Then
 		// remember where to resume next time through the loop.
-		tb = append(tb, b[svloc:d1[0]]...)
-		tb = append(tb, []byte(js)...)
-		res = append(res, tb...)
+		//res = append(res, b[svloc:d1[0]]...)
+		res = append(append(res, b[svloc:d1[0]]...), []byte(js)...)
 		svloc = d1[1]
 	}
 

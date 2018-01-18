@@ -1,9 +1,12 @@
+// The finder drives the main processing of the crawler, accumulates
+// results, and reports the finall word count tallies.
 package main
 
 import (
 	"fmt"
 	"net/url"
 	"sort"
+	"strings"
 	"sync"
 )
 
@@ -27,6 +30,28 @@ type kvPair struct {
 
 type kvSorter []kvPair
 
+// Creates a new WordFinder with the given start URL.
+func newWordFinder(startURL *url.URL) *WordFinder {
+
+	// Restrict crawling to within initial site for a reasonable demo.
+	// So a site that has our host in it (we don't need the www part
+	// to comapre) is a link we'll follow/
+	target := startURL.Hostname()
+	if strings.HasPrefix(target, "www.") {
+		target = target[4:]
+	}
+
+	return &WordFinder{
+		visited:  make(map[string]bool),
+		words:    make(map[string]int),
+		startURL: startURL,
+		target:   target,
+		filter:   make(chan []string, 5*(*concurrency)),
+	}
+}
+
+// When a goroutine is finished processing a link, it transfers it's
+// link and word count data to the finder.
 func (wf *WordFinder) addLinkData(sr *SearchRecord, wds map[string]int,
 	links []string) {
 	wf.mu.Lock()
@@ -48,6 +73,7 @@ func (wf *WordFinder) addLinkData(sr *SearchRecord, wds map[string]int,
 	}
 }
 
+// Show any errors and the top word counts.
 func (wf *WordFinder) printResults() {
 	for _, r := range wf.records {
 		if r.err != nil {
