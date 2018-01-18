@@ -1,5 +1,5 @@
 // The scanner is the task launched from the worker goroutines to
-// parse a given link and extract and count embdeded words, and also
+// parse a given link and extract and count embedded words, and also
 // to find embedded links and send those to the work channel to be
 // processed by the same goroutines.
 package main
@@ -92,15 +92,14 @@ func (sr *SearchRecord) processLink(wf *WordFinder) {
 					break
 				}
 
-				// If it's not an 'href'
-				// Skip fragment links to the same page.
+				// Skip if it's not an 'href'.
 				attr := string(k)
 				if attr != "href" {
 					continue
 				}
 
-				// Skip fragment links to the same page (i.e. the entire link
-				// is a fragment).
+				// Skip fragment links to the same page
+				// (i.e. the entire link is a fragment).
 				av := string(v)
 				if strings.HasPrefix(av, "#") {
 					continue
