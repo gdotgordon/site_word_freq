@@ -19,6 +19,10 @@ completely in reasonable time for a demo.  If you find the website of
 an individual proprietor with a small site, as I managed to, the traversal
 will only take a few seconds.
 
+That said, I've added handlers for SIGINT and SIGTERM, so that upon
+receipt of those signals, the exisiting work-in-process is drained,
+and the results up to that point are displayed.
+
 Architecturally it uses the following elements:
 - A configurable fixed number of goroutines.  This is important
 to be able to scale a backend service without rebuilding it.
