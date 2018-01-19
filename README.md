@@ -14,7 +14,7 @@ results for all sites are sorted, with the most frequent ones displayed.
 
 Usage: `crawl <web site>`
  
-I found the well-known commercial websites to be to large to viably crawl
+I found the well-known commercial websites to be too large to viably crawl
 completely in reasonable time for a demo.  If you find the website of
 an individual proprietor with a small site, as I managed to, the traversal
 will only take a few seconds.
