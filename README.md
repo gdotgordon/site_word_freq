@@ -20,7 +20,7 @@ an individual proprietor with a small site, as I managed to, the traversal
 will only take a few seconds.
 
 That said, I've added handlers for SIGINT and SIGTERM, so that upon
-receipt of those signals, the exisiting work-in-process is drained,
+receipt of those signals, the exisiting work-in-progress is drained,
 and the results up to that point are displayed.
 
 Architecturally it uses the following elements:
