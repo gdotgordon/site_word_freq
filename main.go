@@ -21,10 +21,14 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 var (
@@ -50,8 +54,22 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
 	finder := newWordFinder(surl)
-	finder.run()
+
+	go func() {
+		// Shutdown cleanup on termination signal (SIGINT and SIGTERM for now).
+		ch := make(chan os.Signal)
+		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+		log.Println(<-ch)
+		cancel()
+	}()
+
+	finder.run(ctx)
+	showStatus(finder)
+}
+
+func showStatus(finder *WordFinder) {
 	errs := finder.getErrors()
 	if errs == nil {
 		fmt.Printf("No errors occurred in run.\n")

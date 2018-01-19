@@ -3,6 +3,8 @@
 package main
 
 import (
+	"context"
+	"log"
 	"net/url"
 	"sort"
 	"strings"
@@ -59,7 +61,7 @@ func newWordFinder(startURL *url.URL) *WordFinder {
 // This is the main run loop from the crawler.  It creates the
 // worker goroutines, filters and submits new URL processing tasks,
 // and waits for the entire process to complete before returning.
-func (wf *WordFinder) run() {
+func (wf *WordFinder) run(ctx context.Context) {
 
 	// Create and launch the goroutines.
 	tasks := make(chan SearchRecord, concurrencyMultiplier*(*concurrency))
@@ -70,7 +72,7 @@ func (wf *WordFinder) run() {
 			defer wg.Done()
 
 			for rec := range tasks {
-				rec.processLink(wf)
+				rec.processLink(ctx, wf)
 			}
 		}()
 	}
@@ -81,6 +83,7 @@ func (wf *WordFinder) run() {
 	// Loop until there is no more work.  By keeping a count, we know
 	// when there is no more work left.  The loop decrements once each
 	// time through to balance the result of adding a new search task.
+	interrupted := false
 	for cnt := 1; cnt > 0; cnt-- {
 
 		// At the start of each loop iteration, we block on the "filter"
@@ -88,19 +91,31 @@ func (wf *WordFinder) run() {
 		// links found for a page are in a single slice).  The filter
 		// also removes any links already visited.
 		l := <-wf.filter
-
 		for _, link := range l {
 			if wf.visited[link] == false {
 				wf.visited[link] = true
 				// Every link sent into the "task" channel
-				// adds one to the count.
+				// adds one to the count.  Note if we received
+				// an interrupt, we'll stop sending new tasks
+				// and wait for the queue to drain.
 				cnt++
-				tasks <- SearchRecord{url: link}
+				select {
+				case <-ctx.Done():
+					cnt--
+					interrupted = true
+				case tasks <- SearchRecord{url: link}:
+				}
 			}
 		}
 	}
 
 	// Don't leak goroutines (yeah, it's a demo, but still).
+	// Note: due to the counting in the loop above, we know
+	// that all sending and receiving of data is done, so
+	// it is safe to close the channels here.
+	if interrupted {
+		log.Printf("Note: process was interrupted, results are partial.")
+	}
 	close(tasks)
 	close(wf.filter)
 	wg.Wait()
@@ -108,8 +123,8 @@ func (wf *WordFinder) run() {
 
 // When a goroutine is finished processing a link, it transfers it's
 // link and word count data to the finder.
-func (wf *WordFinder) addLinkData(sr *SearchRecord, wds map[string]int,
-	links []string) {
+func (wf *WordFinder) addLinkData(ctx context.Context,
+	sr *SearchRecord, wds map[string]int, links []string) {
 	wf.mu.Lock()
 	wf.records = append(wf.records, sr)
 	for k, v := range wds {

@@ -6,6 +6,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -41,7 +42,7 @@ var (
 		`\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]`)
 )
 
-func (sr *SearchRecord) processLink(wf *WordFinder) {
+func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 	// Read the url contents and parse the line to get embedded
 	// text and extract links for future processing.
 	log.Printf("Processing link: '%s'\n", sr.url)
@@ -49,7 +50,7 @@ func (sr *SearchRecord) processLink(wf *WordFinder) {
 	if err != nil {
 		log.Printf("error opening '%s': %v\n", sr.url, err)
 		sr.err = err
-		wf.addLinkData(sr, nil, nil)
+		wf.addLinkData(ctx, sr, nil, nil)
 		return
 	}
 	defer resp.Body.Close()
@@ -71,7 +72,7 @@ func (sr *SearchRecord) processLink(wf *WordFinder) {
 				sr.err = z.Err()
 				log.Printf("error parsing '%s': %v\n", sr.url, err)
 			}
-			wf.addLinkData(sr, wds, links)
+			wf.addLinkData(ctx, sr, wds, links)
 			return
 		case html.TextToken:
 			if !inAnchor {

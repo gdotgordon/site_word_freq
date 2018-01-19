@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -56,8 +57,9 @@ func TestServer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("URL parse failed: %v\n", err)
 	}
+	ctx := context.Background()
 	finder := newWordFinder(u)
-	finder.run()
+	finder.run(ctx)
 	errs := finder.getErrors()
 	if len(errs) != 0 {
 		t.Fatalf("got %d unexpected errors\n", len(errs))
