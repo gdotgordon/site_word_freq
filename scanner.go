@@ -139,6 +139,8 @@ func (sr *SearchRecord) processLink(wf *WordFinder) {
 					links = append(links, av)
 				}
 			}
+		case html.EndTagToken:
+			inAnchor = false
 		}
 	}
 }
