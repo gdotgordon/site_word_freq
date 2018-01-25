@@ -1,5 +1,5 @@
 // The finder drives the main processing of the crawler, accumulates
-// error results and stats, and reports the finall word count tallies.
+// error results and stats, and reports the final word count tallies.
 package main
 
 import (
