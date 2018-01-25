@@ -15,7 +15,7 @@ Statistics useful for performance tuning are also printed.
 
 Usage: `crawl <web site>`
  
-The well-known commercial websites to be too large to viably crawl
+The well-known commercial websites are genwrally too large to viably crawl
 completely in reasonable time for a demo.  However, I have added handlers
 for SIGINT and SIGTERM, so that upon receipt of those signals, the exisiting
 work-in-progress is drained, and the results up to that point are displayed.
