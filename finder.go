@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/url"
 	"sort"
@@ -11,29 +12,27 @@ import (
 	"sync"
 )
 
-// Used to determine a channel buffer size.  This is a swag that each
-// visited page may generate this number of new links to process.
-const concurrencyMultiplier = 5
-
 // The WordFinder is the struct that controls the overall processing.
 // It collates the results to get the longest word at the end.
 type WordFinder struct {
-	visited map[string]bool
-	words   map[string]int
-	errRecs []SearchRecord
-
-	target   string
-	startURL *url.URL
-	filter   chan ([]string)
-
+	words     map[string]int
+	errRecs   []SearchRecord
+	target    string
+	startURL  *url.URL
+	filter    chan ([]string)
 	interrupt bool
 	mu        sync.Mutex
+	fmtr      *formatter
 	stats     *RunStats
 }
 
 type RunStats struct {
 	chanFree    int64
 	chanBlocked int64
+}
+
+type formatter struct {
+	fmu sync.Mutex
 }
 
 // The following two structs are for sorting the frequency map.
@@ -59,11 +58,11 @@ func newWordFinder(startURL *url.URL) *WordFinder {
 	}
 
 	return &WordFinder{
-		visited:  make(map[string]bool),
 		words:    make(map[string]int),
 		startURL: startURL,
 		target:   target,
 		filter:   make(chan []string, concurrencyMultiplier*(*concurrency)),
+		fmtr:     &formatter{},
 		stats:    &RunStats{},
 	}
 }
@@ -76,6 +75,7 @@ func (wf *WordFinder) run(ctx context.Context) {
 	log.Printf("Beginning run, type Ctrl-C to interrupt.\n\n")
 
 	// Create and launch the goroutines.
+	visited := make(map[string]bool)
 	tasks := make(chan SearchRecord, concurrencyMultiplier*(*concurrency))
 	var wg sync.WaitGroup
 	for i := 0; i < *concurrency; i++ {
@@ -107,8 +107,8 @@ func (wf *WordFinder) run(ctx context.Context) {
 		}
 
 		for _, link := range l {
-			if wf.visited[link] == false {
-				wf.visited[link] = true
+			if visited[link] == false {
+				visited[link] = true
 				// Every link sent into the "task" channel
 				// adds one to the count.  Note if we received
 				// an interrupt, we'll stop sending new tasks
@@ -190,6 +190,12 @@ func (wf *WordFinder) getErrors() []SearchRecord {
 
 func (wf *WordFinder) getRunStats() *RunStats {
 	return wf.stats
+}
+
+func (f *formatter) showStatusLine(line string) {
+	f.fmu.Lock()
+	fmt.Print(line)
+	f.fmu.Unlock()
 }
 
 // The following methods are used to to sort the histogram by value.

@@ -26,6 +26,10 @@ import (
 	"syscall"
 )
 
+// Used to determine a channel buffer size.  This is a swag that each
+// visited page may generate this number of new links to process.
+const concurrencyMultiplier = 5
+
 var (
 	concurrency = flag.Int("concurrency", 5,
 		"number of active concurrent goroutines")
@@ -68,7 +72,8 @@ func main() {
 	finder := newWordFinder(surl)
 
 	go func() {
-		// Shutdown cleanup on termination signal (SIGINT and SIGTERM for now).
+		// Shutdown cleanup on termination signal (SIGINT and SIGTERM
+		// for now).
 		ch := make(chan os.Signal)
 		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 		log.Printf("%-75.75s", <-ch)

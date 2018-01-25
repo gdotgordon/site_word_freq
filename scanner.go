@@ -51,6 +51,7 @@ var (
 func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 	// Read the url contents and parse the line to get embedded
 	// text and extract links for future processing.
+	var line string
 	if isTTY {
 		var leading string
 		if wf.interrupt {
@@ -60,10 +61,11 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 		}
 
 		// Show links on same line.
-		fmt.Printf("%s%-75.75s%s\r", leading, sr.url, graphicsOff)
+		line = fmt.Sprintf("%s%-75.75s%s\r", leading, sr.url, graphicsOff)
 	} else {
-		log.Printf("Processing link: '%s'\n", sr.url)
+		line = fmt.Sprintf("Processing link: '%s'\n", sr.url)
 	}
+	wf.fmtr.showStatusLine(line)
 
 	// Don't redirect outside our site.
 	client := &http.Client{
