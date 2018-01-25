@@ -36,6 +36,8 @@ var (
 		"number of active concurrent goroutines")
 	minLen   = flag.Int("min_len", 10, "the minimum word length to track")
 	totWords = flag.Int("tot_words", 10, "show the top 'this many' words")
+
+	isTTY bool
 )
 
 func main() {
@@ -54,6 +56,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	// We'll use escape sequences if stdout is not being redirected
+	// to a file.  This check may not be perfect, but it is fin
+	// for our purposes.
+	fi, err := os.Stdout.Stat()
+	if err == nil {
+		if (fi.Mode() & (os.ModeDevice | os.ModeCharDevice)) ==
+			(os.ModeDevice | os.ModeCharDevice) {
+			isTTY = true
+		}
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	finder := newWordFinder(surl)
 
@@ -61,7 +74,7 @@ func main() {
 		// Shutdown cleanup on termination signal (SIGINT and SIGTERM for now).
 		ch := make(chan os.Signal)
 		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-		log.Println(<-ch)
+		log.Printf("%-75.75s", <-ch)
 		cancel()
 	}()
 
@@ -70,17 +83,18 @@ func main() {
 }
 
 func showStatus(finder *WordFinder) {
-	errs := finder.getErrors()
-	if errs == nil {
+	elist := finder.getErrors()
+	if elist == nil {
 		fmt.Printf("No errors occurred in run.\n")
 	} else {
-		for _, r := range finder.records {
-			fmt.Printf("'%s': error occurred: %v\n", r.url, r.err)
+		for _, r := range elist {
+			fmt.Printf("'%s': error occurred: %s\n", r.url, r.err.Error())
 		}
 	}
 
 	res := finder.getResults()
-	fmt.Printf("top %d word totals:\n", *totWords)
+	fmt.Printf("Top %d totals for words of length >= %d:\n",
+		*totWords, *minLen)
 	for i, kv := range res {
 		fmt.Printf("[%d] %s: %d\n", i+1, kv.key, kv.value)
 	}

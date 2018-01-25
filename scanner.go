@@ -8,8 +8,10 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
+	"mime"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -40,25 +42,103 @@ var (
 	// a plain sequence of characters.
 	uliteral = regexp.MustCompile(
 		`\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]`)
+
+	bold        = string([]byte{033, '[', '1', 'm'})
+	redBold     = string([]byte{033, '[', '3', '1', ';', '1', 'm'})
+	graphicsOff = string([]byte{033, '[', '0', 'm'})
 )
 
 func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 	// Read the url contents and parse the line to get embedded
 	// text and extract links for future processing.
-	log.Printf("Processing link: '%s'\n", sr.url)
-	resp, err := http.Get(sr.url)
+	if isTTY {
+		var leading string
+		if wf.interrupt {
+			leading = redBold
+		} else {
+			leading = bold
+		}
+		// WIP: show links on same line.
+		fmt.Printf("%s%-75.75s%s\r", leading, sr.url, graphicsOff)
+	} else {
+		log.Printf("Processing link: '%s'\n", sr.url)
+	}
+
+	// Don't redirect outside our site.
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if !strings.HasSuffix(req.URL.Hostname(), wf.target) {
+				return http.ErrUseLastResponse
+			}
+			return nil
+		},
+	}
+	resp, err := client.Get(sr.url)
 	if err != nil {
 		log.Printf("error opening '%s': %v\n", sr.url, err)
 		sr.err = err
-		wf.addLinkData(ctx, sr, nil, nil)
+		wf.addLinkData(sr, nil, nil)
 		return
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode >= 400 {
+		// If the page is forbidden or not found, skip it with no error.
+		if resp.StatusCode != 403 && resp.StatusCode != 404 {
+			sr.err = fmt.Errorf("HTTP status %d received\n", resp.StatusCode)
+		}
+		wf.addLinkData(sr, nil, nil)
+		return
+	}
+	ct := resp.Header.Get("Content-type")
+	if ct == "" {
+		wf.addLinkData(sr, nil, nil)
+		return
+	}
+	m, _, err := mime.ParseMediaType(ct)
+	if err != nil {
+		log.Printf("error parsing content type '%s': %v\n", ct, err)
+		sr.err = err
+		wf.addLinkData(sr, nil, nil)
+		return
+	}
+	if ct == "application/binary" {
+		wf.addLinkData(sr, nil, nil)
+		return
+	}
+
+	br := bufio.NewReader(resp.Body)
+	if m == "text/html" {
+		sr.processHTML(br, wf, sr.url)
+	} else {
+		// If it's not HTML and not bianry, take a swag at parsing
+		// it as line-oriented text.
+		wds := make(map[string]int)
+		for {
+			b, err := br.ReadBytes('\n')
+			if err != nil && err != io.EOF {
+				sr.err = err
+				break
+			}
+			if b != nil && len(b) > 0 {
+				processText(string(b), wds)
+			}
+			if err == io.EOF {
+				break
+			}
+		}
+		wf.addLinkData(sr, wds, nil)
+	}
+}
+
+func (sr *SearchRecord) processHTML(r io.Reader, wf *WordFinder,
+	baseURL string) {
+
+	var base *url.URL
+
 	links := make([]string, 0)
 	wds := make(map[string]int)
-	br := bufio.NewReader(resp.Body)
-	z := html.NewTokenizer(br)
+	z := html.NewTokenizer(r)
 	inAnchor := false
 	for {
 		tt := z.Next()
@@ -70,13 +150,13 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 			e := z.Err()
 			if e != io.EOF {
 				sr.err = z.Err()
-				log.Printf("error parsing '%s': %v\n", sr.url, err)
+				log.Printf("error parsing '%s': %v\n", sr.url, e)
 			}
-			wf.addLinkData(ctx, sr, wds, links)
+			wf.addLinkData(sr, wds, links)
 			return
 		case html.TextToken:
 			if !inAnchor {
-				sr.processText(string(z.Text()), wds)
+				processText(string(z.Text()), wds)
 			}
 			inAnchor = false
 		case html.StartTagToken:
@@ -129,7 +209,14 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 
 				// Ensure we have a full url.
 				if !u.IsAbs() {
-					u = wf.startURL.ResolveReference(u)
+					if base == nil {
+						base, err = url.Parse(baseURL)
+						if err != nil {
+							log.Printf("Warning: URL parse error: %v\n", err)
+							continue
+						}
+					}
+					u = base.ResolveReference(u)
 					av = u.String()
 				}
 
@@ -148,7 +235,7 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 
 // Extract words from text.  If they are long enough, record
 // them in the map.
-func (sr *SearchRecord) processText(text string, wds map[string]int) {
+func processText(text string, wds map[string]int) {
 	text = html.UnescapeString(text)
 	text = convertUnicodeEscapes(text)
 	res := words.FindAllString(text, -1)

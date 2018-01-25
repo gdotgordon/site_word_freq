@@ -18,13 +18,14 @@ const concurrencyMultiplier = 5
 // The WordFinder is the struct that controls the overall processing.
 // It collates the results to get the longest word at the end.
 type WordFinder struct {
-	records  []*SearchRecord
-	visited  map[string]bool
-	words    map[string]int
-	target   string
-	startURL *url.URL
-	filter   chan ([]string)
-	mu       sync.Mutex
+	visited    map[string]bool
+	words      map[string]int
+	errRecords []SearchRecord
+	target     string
+	startURL   *url.URL
+	filter     chan ([]string)
+	interrupt  bool
+	mu         sync.Mutex
 }
 
 // The following two structs are for sorting the frequency map.
@@ -63,6 +64,8 @@ func newWordFinder(startURL *url.URL) *WordFinder {
 // and waits for the entire process to complete before returning.
 func (wf *WordFinder) run(ctx context.Context) {
 
+	log.Printf("Beginning run, type Ctrl-C to interrupt.\n\n")
+
 	// Create and launch the goroutines.
 	tasks := make(chan SearchRecord, concurrencyMultiplier*(*concurrency))
 	var wg sync.WaitGroup
@@ -83,7 +86,6 @@ func (wf *WordFinder) run(ctx context.Context) {
 	// Loop until there is no more work.  By keeping a count, we know
 	// when there is no more work left.  The loop decrements once each
 	// time through to balance the result of adding a new search task.
-	interrupted := false
 	for cnt := 1; cnt > 0; cnt-- {
 
 		// At the start of each loop iteration, we block on the "filter"
@@ -91,6 +93,10 @@ func (wf *WordFinder) run(ctx context.Context) {
 		// links found for a page are in a single slice).  The filter
 		// also removes any links already visited.
 		l := <-wf.filter
+		if wf.interrupt {
+			continue
+		}
+
 		for _, link := range l {
 			if wf.visited[link] == false {
 				wf.visited[link] = true
@@ -102,7 +108,7 @@ func (wf *WordFinder) run(ctx context.Context) {
 				select {
 				case <-ctx.Done():
 					cnt--
-					interrupted = true
+					wf.interrupt = true
 				case tasks <- SearchRecord{url: link}:
 				}
 			}
@@ -113,8 +119,9 @@ func (wf *WordFinder) run(ctx context.Context) {
 	// Note: due to the counting in the loop above, we know
 	// that all sending and receiving of data is done, so
 	// it is safe to close the channels here.
-	if interrupted {
-		log.Printf("Note: process was interrupted, results are partial.")
+	if wf.interrupt {
+		log.Printf("%-75.75s\n",
+			"Note: process was interrupted, results are partial.")
 	}
 	close(tasks)
 	close(wf.filter)
@@ -123,10 +130,14 @@ func (wf *WordFinder) run(ctx context.Context) {
 
 // When a goroutine is finished processing a link, it transfers it's
 // link and word count data to the finder.
-func (wf *WordFinder) addLinkData(ctx context.Context,
-	sr *SearchRecord, wds map[string]int, links []string) {
+func (wf *WordFinder) addLinkData(sr *SearchRecord,
+	wds map[string]int, links []string) {
 	wf.mu.Lock()
-	wf.records = append(wf.records, sr)
+
+	// Only append records with errors.
+	if sr.err != nil {
+		wf.errRecords = append(wf.errRecords, *sr)
+	}
 	for k, v := range wds {
 		wf.words[k] += v
 	}
@@ -162,14 +173,8 @@ func (wf *WordFinder) getResults() []kvPair {
 
 // Returns the search records that contained errors or
 // nil if no errors occurred.
-func (wf *WordFinder) getErrors() []*SearchRecord {
-	var sr []*SearchRecord
-	for _, r := range wf.records {
-		if r.err != nil {
-			sr = append(sr, r)
-		}
-	}
-	return sr
+func (wf *WordFinder) getErrors() []SearchRecord {
+	return wf.errRecords
 }
 
 // The following methods are used to to sort the histogram by value.

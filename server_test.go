@@ -2,11 +2,19 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 )
+
+func TestColor(*testing.T) {
+	fmt.Printf("%s%s%s",
+		string([]byte{033, '[', '3', '1', ';', '1', 'm'}),
+		"hello",
+		string([]byte{033, '[', '0', 'm'}))
+}
 
 func TestServer(t *testing.T) {
 	firstPage := `
