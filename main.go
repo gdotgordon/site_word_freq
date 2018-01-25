@@ -3,16 +3,11 @@
 // web crawler that makes its best effort to stay within the hostname
 // of the original site.  On a given page, it both scans for text, for
 // which it builds a frequncy histogram, plus it extracts the "href"
-// links for further processing.  At the end, the accumulated word count
-// results for all sites are sorted, with the most frequent ones displayed.
+// links for further processing.
 //
-// Architecturally it uses the following elements:
-// - A configurable fixed number of goroutines.  This is important
-// to be able to scale a backend service without rebuilding it.
-// - Rich error reporting per goroutine.  This is accomplished by
-// sending a struct which contains an error field in addition to the
-// input parameters into the task channel.  Using this technique, we
-// can clearly sort out which errors are tied to which URLs.
+// At the end, the most frequent cumulateive word counts are displayed
+// in sorted order.  It also reports some statistic related to channel
+// usage, so in theory, we could perforamnce tune the program.
 //
 // The program uses two channels, one for the goroutines to read URLs
 // to process, and another for the results to be sent back to the main
@@ -37,6 +32,8 @@ var (
 	minLen   = flag.Int("min_len", 10, "the minimum word length to track")
 	totWords = flag.Int("tot_words", 10, "show the top 'this many' words")
 
+	// The output of sites visited depends on whether the output is
+	// sent to a terminal.
 	isTTY bool
 )
 
@@ -91,6 +88,11 @@ func showStatus(finder *WordFinder) {
 			fmt.Printf("'%s': error occurred: %s\n", r.url, r.err.Error())
 		}
 	}
+
+	rs := finder.getRunStats()
+	fmt.Printf("job channel was blocked %.2f%% of the time (%d/%d)\n\n",
+		float64(rs.chanBlocked)/float64(rs.chanBlocked+rs.chanFree)*100,
+		rs.chanBlocked, rs.chanBlocked+rs.chanFree)
 
 	res := finder.getResults()
 	fmt.Printf("Top %d totals for words of length >= %d:\n",

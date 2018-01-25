@@ -58,7 +58,8 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 		} else {
 			leading = bold
 		}
-		// WIP: show links on same line.
+
+		// Show links on same line.
 		fmt.Printf("%s%-75.75s%s\r", leading, sr.url, graphicsOff)
 	} else {
 		log.Printf("Processing link: '%s'\n", sr.url)

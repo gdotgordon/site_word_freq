@@ -1,5 +1,5 @@
 // The finder drives the main processing of the crawler, accumulates
-// results, and reports the finall word count tallies.
+// error results and stats, and reports the finall word count tallies.
 package main
 
 import (
@@ -18,14 +18,22 @@ const concurrencyMultiplier = 5
 // The WordFinder is the struct that controls the overall processing.
 // It collates the results to get the longest word at the end.
 type WordFinder struct {
-	visited    map[string]bool
-	words      map[string]int
-	errRecords []SearchRecord
-	target     string
-	startURL   *url.URL
-	filter     chan ([]string)
-	interrupt  bool
-	mu         sync.Mutex
+	visited map[string]bool
+	words   map[string]int
+	errRecs []SearchRecord
+
+	target   string
+	startURL *url.URL
+	filter   chan ([]string)
+
+	interrupt bool
+	mu        sync.Mutex
+	stats     *RunStats
+}
+
+type RunStats struct {
+	chanFree    int64
+	chanBlocked int64
 }
 
 // The following two structs are for sorting the frequency map.
@@ -56,6 +64,7 @@ func newWordFinder(startURL *url.URL) *WordFinder {
 		startURL: startURL,
 		target:   target,
 		filter:   make(chan []string, concurrencyMultiplier*(*concurrency)),
+		stats:    &RunStats{},
 	}
 }
 
@@ -136,7 +145,7 @@ func (wf *WordFinder) addLinkData(sr *SearchRecord,
 
 	// Only append records with errors.
 	if sr.err != nil {
-		wf.errRecords = append(wf.errRecords, *sr)
+		wf.errRecs = append(wf.errRecs, *sr)
 	}
 	for k, v := range wds {
 		wf.words[k] += v
@@ -148,7 +157,9 @@ func (wf *WordFinder) addLinkData(sr *SearchRecord,
 	// available for processing.
 	select {
 	case wf.filter <- links:
+		wf.stats.chanFree++
 	default:
+		wf.stats.chanBlocked++
 		go func() {
 			wf.filter <- links
 		}()
@@ -174,7 +185,11 @@ func (wf *WordFinder) getResults() []kvPair {
 // Returns the search records that contained errors or
 // nil if no errors occurred.
 func (wf *WordFinder) getErrors() []SearchRecord {
-	return wf.errRecords
+	return wf.errRecs
+}
+
+func (wf *WordFinder) getRunStats() *RunStats {
+	return wf.stats
 }
 
 // The following methods are used to to sort the histogram by value.
