@@ -15,22 +15,22 @@ Statistics useful for performance tuning are also printed.
 
 Usage: `crawl <web site>`
  
-I found the well-known commercial websites to be too large to viably crawl
+The well-known commercial websites to be too large to viably crawl
 completely in reasonable time for a demo.  However, I have added handlers
 for SIGINT and SIGTERM, so that upon receipt of those signals, the exisiting
 work-in-progress is drained, and the results up to that point are displayed.
 
-Or if you find the website of an individual proprietor with a small site, the
+If you find the website of an individual proprietor with a small site, the
 traversal will only take a few seconds.
 
 The sequence of sites being visited is disaplyed on a single line, and
 changes color to red if the crawl is interrupted, as the queue is drained.
 
 Architecturally it uses the following elements:
-- A configurable fixed number of goroutines with the performance
-enhancement of creating a new goroutine to submit the child URLs
-if the send channel would block.  It is useful to be able to scale
-a backend service without rebuilding it.
+- A configurable fixed number of HTML processing goroutines with
+the performance enhancement of creating a new goroutine to actually
+submit the child URLs from that page if the send channel would block.
+It is useful to be able to scale a backend service without rebuilding it.
 - Rich error reporting per goroutine.  This is accomplished by
 sending a struct which contains an error field in addition to the
 input parameters into the task channel.  Using this technique, we
@@ -41,7 +41,7 @@ the more the job submission channel is full.  This is fully expected
 of a geomertrically expanding algorithm such as a web crawler, and
 increasing channel buffer size or goroutines would still eventually
 hit a wall for larger sites.  A single Go program on a laptop is far
-from the ideal web crawler, but hopefully the program demostrates
+from the ideal web crawler, but hopefully the program demonstrates
 some good Go design concepts.
 
 One of the challenges in implementing a recursive-style algorithm
@@ -50,10 +50,5 @@ processing is complete.  To accomplish this, The program uses two
 channels, one for the goroutines to read URLs to process, and another
 for the results to be sent back to the main processing loop.  We use
 a looping and counting techique that is determines when we're done processing.
-
-The code loops, first waiting for new URLs to process, removing any sites
-already visited, and then sends the unique urls to the task channel
-to be processed.  It adds 1 to the count for each record sent to the
-task queue, and decrements by one before it is about to read the results
-channel.  This counting technique is demonstrated in Donovan and Kernighan's
-"The Go Programming Language" book.
+This technique is demonstrated in Donovan and Kernighan's "The Go Programming
+Language" book.
