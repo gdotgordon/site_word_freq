@@ -8,22 +8,22 @@ This program finds the most frequently occurring words of a
 specified minimum length for a given site.  It is essentially a
 web crawler that makes its best effort to stay within the hostname
 of the original site.  On a given page, it both scans for text, for
-which it builds a frequncy histogram, plus it extracts the "href"
+which it builds a frequency histogram, plus it extracts the "href"
 links for further processing.  At the end, the accumulated word count
 results for all sites are sorted, with the most frequent ones displayed.
 Statistics useful for performance tuning are also printed.
 
 Usage: `crawl <web site>`
  
-The well-known commercial websites are genwrally too large to viably crawl
+The well-known commercial websites are generally too large to viably crawl
 completely in reasonable time for a demo.  However, I have added handlers
-for SIGINT and SIGTERM, so that upon receipt of those signals, the exisiting
+for SIGINT and SIGTERM, so that upon receipt of those signals, the existing
 work-in-progress is drained, and the results up to that point are displayed.
 
 If you find the website of an individual proprietor with a small site, the
 traversal will only take a few seconds.
 
-The sequence of sites being visited is disaplyed on a single line, and
+The sequence of sites being visited is displayed on a single line, and
 changes color to red if the crawl is interrupted, as the queue is drained.
 
 Architecturally it uses the following elements:
@@ -46,9 +46,9 @@ some good Go design concepts.
 
 One of the challenges in implementing a recursive-style algorithm
 such as a crawler using a fixed thread pool is determining when the
-processing is complete.  To accomplish this, The program uses two
+processing is complete.  To accomplish this, the program uses two
 channels, one for the goroutines to read URLs to process, and another
 for the results to be sent back to the main processing loop.  We use
-a looping and counting techique that is determines when we're done processing.
+a looping and counting techique that determines when we're done processing.
 This technique is demonstrated in Donovan and Kernighan's "The Go Programming
 Language" book.
