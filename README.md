@@ -15,13 +15,15 @@ results for all sites are sorted, with the most frequent ones displayed.
 Usage: `crawl <web site>`
  
 I found the well-known commercial websites to be too large to viably crawl
-completely in reasonable time for a demo.  If you find the website of
-an individual proprietor with a small site, as I managed to, the traversal
-will only take a few seconds.
+completely in reasonable time for a demo.  However, I have added handlers
+for SIGINT and SIGTERM, so that upon receipt of those signals, the exisiting
+work-in-progress is drained, and the results up to that point are displayed.
 
-That said, I've added handlers for SIGINT and SIGTERM, so that upon
-receipt of those signals, the exisiting work-in-progress is drained,
-and the results up to that point are displayed.
+Or if you find the website of an individual proprietor with a small site, the
+traversal will only take a few seconds.
+
+The sequrnce of sites being visited is disaplyed on a single line, and
+changes color to red if the crawl is interrupted, as the queue is drained.
 
 Architecturally it uses the following elements:
 - A configurable fixed number of goroutines.  This is important
