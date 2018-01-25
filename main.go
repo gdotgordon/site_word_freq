@@ -1,18 +1,18 @@
 // This program finds the most frequently occurring words of a
-// specified minimum length for a given site.  It is essentailly a
+// specified minimum length for a given site.  It is essentially a
 // web crawler that makes its best effort to stay within the hostname
 // of the original site.  On a given page, it both scans for text, for
 // which it builds a frequncy histogram, plus it extracts the "href"
 // links for further processing.
 //
 // At the end, the most frequent cumulateive word counts are displayed
-// in sorted order.  It also reports some statistic related to channel
-// usage, so in theory, we could perforamnce tune the program.
+// in sorted order.  It also reports some statistics related to channel
+// usage, so in theory, we could performance tune the program.
 //
 // The program uses two channels, one for the goroutines to read URLs
 // to process, and another for the results to be sent back to the main
-// processing loop.  We use a looping and counting techique that is used
-// to determine when we're done processing.
+// processing loop.  We use a looping and counting techique to determine
+// when we're done processing.
 package main
 
 import (
