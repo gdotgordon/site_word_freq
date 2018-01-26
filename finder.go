@@ -145,7 +145,6 @@ func (wf *WordFinder) addLinkData(sr *SearchRecord,
 	for k, v := range wds {
 		wf.words[k] += v
 	}
-	wf.mu.Unlock()
 
 	// Only create a new goroutine to send the link if the channel
 	// would block.  One way or another, we want to keep the thread
@@ -153,8 +152,10 @@ func (wf *WordFinder) addLinkData(sr *SearchRecord,
 	select {
 	case wf.filter <- links:
 		wf.stats.chanFree++
+		wf.mu.Unlock()
 	default:
 		wf.stats.chanBlocked++
+		wf.mu.Unlock()
 		go func() {
 			wf.filter <- links
 		}()
