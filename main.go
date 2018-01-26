@@ -23,22 +23,29 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 )
 
-// Used to determine a channel buffer size.  This is a swag that each
-// visited page may generate this number of new links to process.
-const concurrencyMultiplier = 5
+type formatter struct {
+	fmu   sync.Mutex
+	isTTY bool
+}
+
+const (
+	// Some ASCII graphics sequences.
+	bold        = "\033[1m"
+	redBold     = "\033[31;1m"
+	graphicsOff = "\033[0m"
+)
 
 var (
 	concurrency = flag.Int("concurrency", 5,
 		"number of active concurrent goroutines")
+	multiplier = flag.Int("multiplier", 5,
+		"channel buffer size is 'concurrency * multiplier'")
 	minLen   = flag.Int("min_len", 10, "the minimum word length to track")
 	totWords = flag.Int("tot_words", 10, "show the top 'this many' words")
-
-	// The output of sites visited depends on whether the output is
-	// sent to a terminal.
-	isTTY bool
 )
 
 func main() {
@@ -60,16 +67,10 @@ func main() {
 	// We'll use escape sequences if stdout is not being redirected
 	// to a file.  This check may not be perfect, but it is fine
 	// for our purposes.
-	fi, err := os.Stdout.Stat()
-	if err == nil {
-		if (fi.Mode() & (os.ModeDevice | os.ModeCharDevice)) ==
-			(os.ModeDevice | os.ModeCharDevice) {
-			isTTY = true
-		}
-	}
+	formatter := NewFormatter()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	finder := newWordFinder(surl)
+	finder := newWordFinder(surl, formatter)
 
 	go func() {
 		// Shutdown cleanup on termination signal (SIGINT and SIGTERM
@@ -105,4 +106,37 @@ func showStatus(finder *WordFinder) {
 	for i, kv := range res {
 		fmt.Printf("[%d] %s: %d\n", i+1, kv.key, kv.value)
 	}
+}
+
+func NewFormatter() *formatter {
+	f := &formatter{}
+	fi, err := os.Stdout.Stat()
+	if err == nil {
+		if (fi.Mode() & (os.ModeDevice | os.ModeCharDevice)) ==
+			(os.ModeDevice | os.ModeCharDevice) {
+			f.isTTY = true
+		}
+	}
+	return f
+}
+
+func (f *formatter) showStatusLine(text string, interrupt bool) {
+	var line string
+
+	if f.isTTY {
+		var leading string
+		if interrupt {
+			leading = redBold
+		} else {
+			leading = bold
+		}
+
+		// Show links on same line.
+		line = fmt.Sprintf("%s%-75.75s%s\r", leading, text, graphicsOff)
+	} else {
+		line = fmt.Sprintf("Processing link: '%s'\n", text)
+	}
+	f.fmu.Lock()
+	fmt.Print(line)
+	f.fmu.Unlock()
 }

@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/url"
 	"sort"
@@ -31,10 +30,6 @@ type RunStats struct {
 	chanBlocked int64
 }
 
-type formatter struct {
-	fmu sync.Mutex
-}
-
 // The following two structs are for sorting the frequency map.
 type kvPair struct {
 	key   string
@@ -47,7 +42,7 @@ type kvSorter []kvPair
 var _ sort.Interface = (*kvSorter)(nil)
 
 // Creates a new WordFinder with the given start URL.
-func newWordFinder(startURL *url.URL) *WordFinder {
+func newWordFinder(startURL *url.URL, f *formatter) *WordFinder {
 
 	// Restrict crawling to within initial site for a reasonable demo.
 	// So a site that has our host in it (we don't need the www part
@@ -61,8 +56,8 @@ func newWordFinder(startURL *url.URL) *WordFinder {
 		words:    make(map[string]int),
 		startURL: startURL,
 		target:   target,
-		filter:   make(chan []string, concurrencyMultiplier*(*concurrency)),
-		fmtr:     &formatter{},
+		filter:   make(chan []string, (*multiplier)*(*concurrency)),
+		fmtr:     f,
 		stats:    &RunStats{},
 	}
 }
@@ -76,7 +71,7 @@ func (wf *WordFinder) run(ctx context.Context) {
 
 	// Create and launch the goroutines.
 	visited := make(map[string]bool)
-	tasks := make(chan SearchRecord, concurrencyMultiplier*(*concurrency))
+	tasks := make(chan SearchRecord, (*multiplier)*(*concurrency))
 	var wg sync.WaitGroup
 	for i := 0; i < *concurrency; i++ {
 		wg.Add(1)
@@ -190,12 +185,6 @@ func (wf *WordFinder) getErrors() []SearchRecord {
 
 func (wf *WordFinder) getRunStats() *RunStats {
 	return wf.stats
-}
-
-func (f *formatter) showStatusLine(line string) {
-	f.fmu.Lock()
-	fmt.Print(line)
-	f.fmu.Unlock()
 }
 
 // The following methods are used to to sort the histogram by value.

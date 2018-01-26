@@ -2,19 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 )
-
-func TestColor(*testing.T) {
-	fmt.Printf("%s%s%s",
-		string([]byte{033, '[', '3', '1', ';', '1', 'm'}),
-		"hello",
-		string([]byte{033, '[', '0', 'm'}))
-}
 
 func TestServer(t *testing.T) {
 	firstPage := `
@@ -66,7 +58,7 @@ func TestServer(t *testing.T) {
 		t.Fatalf("URL parse failed: %v\n", err)
 	}
 	ctx := context.Background()
-	finder := newWordFinder(u)
+	finder := newWordFinder(u, NewFormatter())
 	finder.run(ctx)
 	errs := finder.getErrors()
 	if len(errs) != 0 {

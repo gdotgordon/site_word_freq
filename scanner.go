@@ -42,30 +42,12 @@ var (
 	// a plain sequence of characters.
 	uliteral = regexp.MustCompile(
 		`\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]`)
-
-	bold        = string([]byte{033, '[', '1', 'm'})
-	redBold     = string([]byte{033, '[', '3', '1', ';', '1', 'm'})
-	graphicsOff = string([]byte{033, '[', '0', 'm'})
 )
 
 func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 	// Read the url contents and parse the line to get embedded
 	// text and extract links for future processing.
-	var line string
-	if isTTY {
-		var leading string
-		if wf.interrupt {
-			leading = redBold
-		} else {
-			leading = bold
-		}
-
-		// Show links on same line.
-		line = fmt.Sprintf("%s%-75.75s%s\r", leading, sr.url, graphicsOff)
-	} else {
-		line = fmt.Sprintf("Processing link: '%s'\n", sr.url)
-	}
-	wf.fmtr.showStatusLine(line)
+	wf.fmtr.showStatusLine(sr.url, wf.interrupt)
 
 	// Don't redirect outside our site.
 	client := &http.Client{
