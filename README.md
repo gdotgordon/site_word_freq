@@ -11,14 +11,17 @@ of the original site.  On a given page, it both scans for text, for
 which it builds a frequency histogram, plus it extracts the "href"
 links for further processing.  At the end, the accumulated word count
 results for all sites are sorted, with the most frequent ones displayed.
-Statistics useful for performance tuning are also printed.
+Statistics about channel usage are also printed.
 
-Usage: `crawl <web site>`
+Usage: `crawl <web site> [-pprof_port <port num>] [more config options]`
  
 The well-known commercial websites are generally too large to viably crawl
 completely in reasonable time for a demo.  However, I have added handlers
 for SIGINT and SIGTERM, so that upon receipt of those signals, the existing
 work-in-progress is drained, and the results up to that point are displayed.
+
+As I've attached an optional pprof server, it is also useful to monitor
+the program performance in real time at the configured port.
 
 If you find the website of an individual proprietor with a small site, the
 traversal will only take a few seconds.
@@ -38,11 +41,13 @@ can clearly sort out which errors are tied to which URLs.
 
 We observe from the statistics that the longer the program runs,
 the more the job submission channel is full.  This is fully expected
-of a geomertrically expanding algorithm such as a web crawler, and
+of a geometrically expanding algorithm such as a web crawler, and
 increasing channel buffer size or goroutines would still eventually
 hit a wall for larger sites.  A single Go program on a laptop is far
 from the ideal web crawler, but hopefully the program demonstrates
-some good Go design concepts.
+some good Go design concepts.  In examining the heap profile, we
+note that refining some the code that deals with lines scanned from
+the various HTTP pages is an area that should be considered for optimization.
 
 One of the challenges in implementing a recursive-style algorithm
 such as a crawler using a fixed thread pool is determining when the
