@@ -20,9 +20,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 )
@@ -44,8 +47,9 @@ var (
 		"number of active concurrent goroutines")
 	multiplier = flag.Int("multiplier", 5,
 		"channel buffer size is 'concurrency * multiplier'")
-	minLen   = flag.Int("min_len", 10, "the minimum word length to track")
-	totWords = flag.Int("tot_words", 10, "show the top 'this many' words")
+	minLen    = flag.Int("min_len", 10, "the minimum word length to track")
+	totWords  = flag.Int("tot_words", 10, "show the top 'this many' words")
+	pprofPort = flag.Int("pprof_port", 0, "if non-zero, pprof server port")
 )
 
 func main() {
@@ -62,6 +66,13 @@ func main() {
 		fmt.Fprintf(os.Stderr, "The url '%s' is not syntactically valid\n",
 			startURL)
 		os.Exit(1)
+	}
+
+	if *pprofPort != 0 {
+		go func() {
+			log.Println(http.ListenAndServe(
+				"localhost:"+strconv.Itoa(*pprofPort), nil))
+		}()
 	}
 
 	// We'll use escape sequences if stdout is not being redirected
