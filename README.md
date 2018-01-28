@@ -20,8 +20,9 @@ completely in reasonable time for a demo.  However, I have added handlers
 for SIGINT and SIGTERM, so that upon receipt of those signals, the existing
 work-in-progress is drained, and the results up to that point are displayed.
 
-As I've attached an optional pprof server, it is also useful to monitor
-the program performance in real time at the configured port.
+As the program optionally starts a pprof using the configured port, it is
+also useful to monitor the program performance in real time of one of the
+large sites mentioned above.
 
 If you find the website of an individual proprietor with a small site, the
 traversal will only take a few seconds.
