@@ -50,6 +50,7 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 	wf.fmtr.showStatusLine(sr.url, wf.interrupt)
 
 	// Don't redirect outside our site.
+	sr.url = html.EscapeString(sr.url)
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if !strings.HasSuffix(req.URL.Hostname(), wf.target) {
@@ -175,7 +176,8 @@ func (sr *SearchRecord) processHTML(r io.Reader, wf *WordFinder,
 				// Make sure the url is valid format.
 				u, err := url.Parse(av)
 				if err != nil {
-					log.Printf("Warning: parse error: %v\n", err)
+					log.Printf("Warning: parse error on '%s': %v\n",
+						av, err)
 					continue
 				}
 
@@ -221,7 +223,6 @@ func (sr *SearchRecord) processHTML(r io.Reader, wf *WordFinder,
 // Extract words from text.  If they are long enough, record
 // them in the map.
 func processText(text string, wds map[string]int) {
-	text = html.UnescapeString(text)
 	text = convertUnicodeEscapes(text)
 	res := words.FindAllString(text, -1)
 	if len(res) > 0 {
@@ -239,6 +240,9 @@ func processText(text string, wds map[string]int) {
 func convertUnicodeEscapes(text string) string {
 
 	// See if there are any literal Unicode sequences in the string.
+	if !strings.HasPrefix(text, "\\u") {
+		return text
+	}
 	si := uliteral.FindAllStringIndex(text, -1)
 	if si == nil {
 		return text
