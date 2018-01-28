@@ -28,6 +28,7 @@ type WordFinder struct {
 type RunStats struct {
 	chanFree    int64
 	chanBlocked int64
+	dictTotal   int64
 }
 
 // The following two structs are for sorting the frequency map.
@@ -53,10 +54,10 @@ func newWordFinder(startURL *url.URL, f *formatter) *WordFinder {
 	}
 
 	return &WordFinder{
-		words:    make(map[string]int),
+		words:    make(map[string]int, 25000),
 		startURL: startURL,
 		target:   target,
-		filter:   make(chan []string, (*multiplier)*(*concurrency)),
+		filter:   make(chan []string, *chanBufLen),
 		fmtr:     f,
 		stats:    &RunStats{},
 	}
@@ -71,7 +72,7 @@ func (wf *WordFinder) run(ctx context.Context) {
 
 	// Create and launch the goroutines.
 	visited := make(map[string]bool)
-	tasks := make(chan SearchRecord, (*multiplier)*(*concurrency))
+	tasks := make(chan SearchRecord, *chanBufLen)
 	var wg sync.WaitGroup
 	for i := 0; i < *concurrency; i++ {
 		wg.Add(1)
@@ -134,8 +135,8 @@ func (wf *WordFinder) run(ctx context.Context) {
 
 // When a goroutine is finished processing a link, it transfers it's
 // link and word count data to the finder.
-func (wf *WordFinder) addLinkData(sr *SearchRecord,
-	wds map[string]int, links []string) {
+func (wf *WordFinder) addLinkData(ctx context.Context,
+	sr *SearchRecord, wds map[string]int, links []string) {
 	wf.mu.Lock()
 
 	// Only append records with errors.
@@ -150,10 +151,19 @@ func (wf *WordFinder) addLinkData(sr *SearchRecord,
 	// would block.  One way or another, we want to keep the thread
 	// available for processing.
 	select {
+	case <-ctx.Done():
+		wf.mu.Unlock()
+
+		// Due to the nature of the counting algorithm, we need
+		// to add something to the channel, even if interrupted,
+		// so the loop counter balances out the total to 0.
+		wf.filter <- nil
 	case wf.filter <- links:
+		wf.stats.dictTotal += int64(len(wds))
 		wf.stats.chanFree++
 		wf.mu.Unlock()
 	default:
+		wf.stats.dictTotal += int64(len(wds))
 		wf.stats.chanBlocked++
 		wf.mu.Unlock()
 		go func() {

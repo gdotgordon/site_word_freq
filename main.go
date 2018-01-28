@@ -45,8 +45,8 @@ const (
 var (
 	concurrency = flag.Int("concurrency", 5,
 		"number of active concurrent goroutines")
-	multiplier = flag.Int("multiplier", 5,
-		"channel buffer size is 'concurrency * multiplier'")
+	chanBufLen = flag.Int("chanf_buf_len", 200,
+		"channel buffer length for buffers SearchRecords processed")
 	minLen    = flag.Int("min_len", 10, "the minimum word length to track")
 	totWords  = flag.Int("tot_words", 10, "show the top 'this many' words")
 	pprofPort = flag.Int("pprof_port", 0, "if non-zero, pprof server port")
@@ -88,7 +88,9 @@ func main() {
 		// for now).
 		ch := make(chan os.Signal)
 		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-		log.Printf("%-75.75s", <-ch)
+		sig := <-ch
+		l := 75 - len(sig.String())
+		log.Printf("%s%-*.*s", sig, l, l, "... draining queue")
 		cancel()
 	}()
 
@@ -99,7 +101,7 @@ func main() {
 func showStatus(finder *WordFinder) {
 	elist := finder.getErrors()
 	if elist == nil {
-		fmt.Printf("No errors occurred in run.\n")
+		fmt.Printf("%-75.75s\n", "No errors occurred in run.")
 	} else {
 		for _, r := range elist {
 			fmt.Printf("'%s': error occurred: %s\n", r.url, r.err.Error())
@@ -107,9 +109,13 @@ func showStatus(finder *WordFinder) {
 	}
 
 	rs := finder.getRunStats()
-	fmt.Printf("job channel was blocked %.2f%% of the time (%d/%d)\n\n",
+	fmt.Printf("job channel was blocked %.2f%% of the time (%d/%d)\n",
 		float64(rs.chanBlocked)/float64(rs.chanBlocked+rs.chanFree)*100,
 		rs.chanBlocked, rs.chanBlocked+rs.chanFree)
+	fmt.Printf("main word dict: len=%d\n", len(finder.words))
+	fmt.Printf("avg words per page dict: %2.2f\n",
+		float64(finder.stats.dictTotal)/float64(rs.chanBlocked+rs.chanFree))
+	fmt.Println()
 
 	res := finder.getResults()
 	fmt.Printf("Top %d totals for words of length >= %d:\n",
@@ -147,7 +153,8 @@ func (f *formatter) showStatusLine(text string, interrupt bool) {
 	} else {
 		line = fmt.Sprintf("Processing link: '%s'\n", text)
 	}
+
 	f.fmu.Lock()
-	fmt.Print(line)
+	os.Stdout.Write([]byte(line))
 	f.fmu.Unlock()
 }

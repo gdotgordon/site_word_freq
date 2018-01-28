@@ -49,6 +49,11 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 	// text and extract links for future processing.
 	wf.fmtr.showStatusLine(sr.url, wf.interrupt)
 
+	if wf.interrupt {
+		wf.addLinkData(ctx, sr, nil, nil)
+		return
+	}
+
 	// Don't redirect outside our site.
 	sr.url = html.EscapeString(sr.url)
 	client := &http.Client{
@@ -63,7 +68,7 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 	if err != nil {
 		log.Printf("error opening '%s': %v\n", sr.url, err)
 		sr.err = err
-		wf.addLinkData(sr, nil, nil)
+		wf.addLinkData(ctx, sr, nil, nil)
 		return
 	}
 	defer resp.Body.Close()
@@ -73,29 +78,29 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 		if resp.StatusCode != 403 && resp.StatusCode != 404 {
 			sr.err = fmt.Errorf("HTTP status %d received\n", resp.StatusCode)
 		}
-		wf.addLinkData(sr, nil, nil)
+		wf.addLinkData(ctx, sr, nil, nil)
 		return
 	}
 	ct := resp.Header.Get("Content-type")
 	if ct == "" {
-		wf.addLinkData(sr, nil, nil)
+		wf.addLinkData(ctx, sr, nil, nil)
 		return
 	}
 	m, _, err := mime.ParseMediaType(ct)
 	if err != nil {
 		log.Printf("error parsing content type '%s': %v\n", ct, err)
 		sr.err = err
-		wf.addLinkData(sr, nil, nil)
+		wf.addLinkData(ctx, sr, nil, nil)
 		return
 	}
 	if ct == "application/binary" {
-		wf.addLinkData(sr, nil, nil)
+		wf.addLinkData(ctx, sr, nil, nil)
 		return
 	}
 
 	br := bufio.NewReader(resp.Body)
 	if m == "text/html" {
-		sr.processHTML(br, wf, sr.url)
+		sr.processHTML(ctx, br, wf, sr.url)
 	} else {
 		// If it's not HTML and not bianry, take a swag at parsing
 		// it as line-oriented text.
@@ -113,12 +118,12 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 				break
 			}
 		}
-		wf.addLinkData(sr, wds, nil)
+		wf.addLinkData(ctx, sr, wds, nil)
 	}
 }
 
-func (sr *SearchRecord) processHTML(r io.Reader, wf *WordFinder,
-	baseURL string) {
+func (sr *SearchRecord) processHTML(ctx context.Context,
+	r io.Reader, wf *WordFinder, baseURL string) {
 
 	var base *url.URL
 
@@ -138,7 +143,7 @@ func (sr *SearchRecord) processHTML(r io.Reader, wf *WordFinder,
 				sr.err = z.Err()
 				log.Printf("error parsing '%s': %v\n", sr.url, e)
 			}
-			wf.addLinkData(sr, wds, links)
+			wf.addLinkData(ctx, sr, wds, links)
 			return
 		case html.TextToken:
 			if !inAnchor {
