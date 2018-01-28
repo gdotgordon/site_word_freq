@@ -20,9 +20,9 @@ completely in reasonable time for a demo.  However, I have added handlers
 for SIGINT and SIGTERM, so that upon receipt of those signals, the existing
 work-in-progress is drained, and the results up to that point are displayed.
 
-As the program optionally starts a pprof using the configured port, it is
-also useful to monitor the program performance in real time of one of the
-large sites mentioned above.
+As the program optionally starts a pprof HTTP server using the configured
+port, it is also useful to monitor the program performance in real time, even
+for one of the large sites mentioned above.
 
 If you find the website of an individual proprietor with a small site, the
 traversal will only take a few seconds.
@@ -46,9 +46,14 @@ of a geometrically expanding algorithm such as a web crawler, and
 increasing channel buffer size or goroutines would still eventually
 hit a wall for larger sites.  A single Go program on a laptop is far
 from the ideal web crawler, but hopefully the program demonstrates
-some good Go design concepts.  In examining the heap profile, we
-note that refining some the code that deals with lines scanned from
-the various HTTP pages is an area that should be considered for optimization.
+some good Go design concepts.
+
+In examining the heap profile, we note that the code that parses the
+lines scanned from the various HTTP pages is a hotspot that has
+consequently been optimized some.  In terms of CPU, unsurprisingly,
+the synchronization mechanisms use significant time, as does the
+regular expression parser that extracts words (space separators are
+not sufficient to parse words).
 
 One of the challenges in implementing a recursive-style algorithm
 such as a crawler using a fixed thread pool is determining when the
