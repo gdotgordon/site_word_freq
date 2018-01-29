@@ -25,6 +25,7 @@ type WordFinder struct {
 	stats     *RunStats
 }
 
+// The RunStats are mostly for performance-tuning.
 type RunStats struct {
 	chanFree    int64
 	chanBlocked int64

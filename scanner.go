@@ -78,7 +78,7 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 	if resp.StatusCode >= 400 {
 		// If the page is forbidden or not found, skip it with no error.
 		if resp.StatusCode != 403 && resp.StatusCode != 404 {
-			sr.err = fmt.Errorf("HTTP status %d received\n", resp.StatusCode)
+			sr.err = fmt.Errorf("HTTP status %d received", resp.StatusCode)
 		}
 		wf.addLinkData(ctx, sr, nil, nil)
 		return

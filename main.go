@@ -80,7 +80,7 @@ func main() {
 
 	// We'll use escape sequences if stdout is not being redirected
 	// to a file.
-	formatter := NewFormatter()
+	formatter := newFormatter()
 
 	finder := newWordFinder(surl, formatter)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -128,7 +128,7 @@ func showStatus(finder *WordFinder) {
 	}
 }
 
-func NewFormatter() *formatter {
+func newFormatter() *formatter {
 	f := &formatter{}
 	fi, err := os.Stdout.Stat()
 	if err == nil {
