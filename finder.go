@@ -125,7 +125,7 @@ func (wf *WordFinder) run(ctx context.Context) {
 	// that all sending and receiving of data is done, so
 	// it is safe to close the channels here.
 	if wf.interrupt {
-		log.Printf("%-75.75s\n",
+		log.Printf("%-*.*s\n", outputLength, outputLength,
 			"Note: process was interrupted, results are partial.")
 	}
 	close(tasks)
@@ -134,10 +134,14 @@ func (wf *WordFinder) run(ctx context.Context) {
 }
 
 // When a goroutine is finished processing a link, it transfers it's
-// link and word count data to the finder.
+// link and word count data to the finder.  We could eliminate the
+// mutex here and have the dictionary merge happen in the channel
+// read loop, but then the unmerged dictionaries would pile up
+// in the channel buffers, so this is a time/sapce tradeoff.
 func (wf *WordFinder) addLinkData(ctx context.Context,
 	sr *SearchRecord, wds map[string]int, links []string) {
 	wf.mu.Lock()
+	defer wf.mu.Unlock()
 
 	// Only append records with errors.
 	if sr.err != nil {
@@ -152,8 +156,6 @@ func (wf *WordFinder) addLinkData(ctx context.Context,
 	// available for processing.
 	select {
 	case <-ctx.Done():
-		wf.mu.Unlock()
-
 		// Due to the nature of the counting algorithm, we need
 		// to add something to the channel, even if interrupted,
 		// so the loop counter balances out the total to 0.
@@ -161,14 +163,13 @@ func (wf *WordFinder) addLinkData(ctx context.Context,
 	case wf.filter <- links:
 		wf.stats.dictTotal += int64(len(wds))
 		wf.stats.chanFree++
-		wf.mu.Unlock()
+
 	default:
-		wf.stats.dictTotal += int64(len(wds))
-		wf.stats.chanBlocked++
-		wf.mu.Unlock()
 		go func() {
 			wf.filter <- links
 		}()
+		wf.stats.dictTotal += int64(len(wds))
+		wf.stats.chanBlocked++
 	}
 }
 

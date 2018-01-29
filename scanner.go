@@ -50,6 +50,8 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 	wf.fmtr.showStatusLine(sr.url, wf.interrupt)
 
 	if wf.interrupt {
+		// Drain the queue.  For the main loop to terminate, we must
+		// send some result.
 		wf.addLinkData(ctx, sr, nil, nil)
 		return
 	}
@@ -173,7 +175,7 @@ func (sr *SearchRecord) processHTML(ctx context.Context,
 
 				// Skip fragment links to the same page
 				// (i.e. the entire link is a fragment).
-				av := string(v)
+				av := strings.TrimSpace(string(v))
 				if strings.HasPrefix(av, "#") {
 					continue
 				}
@@ -181,6 +183,7 @@ func (sr *SearchRecord) processHTML(ctx context.Context,
 				// Make sure the url is valid format.
 				u, err := url.Parse(av)
 				if err != nil {
+					fmt.Printf("'%s'\n", av)
 					log.Printf("Warning: parse error on '%s': %v\n",
 						av, err)
 					continue
@@ -245,7 +248,7 @@ func processText(text string, wds map[string]int) {
 func convertUnicodeEscapes(text string) string {
 
 	// See if there are any literal Unicode sequences in the string.
-	if !strings.HasPrefix(text, "\\u") {
+	if !strings.Contains(text, "\\u") {
 		return text
 	}
 	si := uliteral.FindAllStringIndex(text, -1)

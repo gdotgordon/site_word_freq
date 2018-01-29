@@ -30,9 +30,11 @@ import (
 	"syscall"
 )
 
+// A formatter for messages intended for stdout.
 type formatter struct {
-	fmu   sync.Mutex
-	isTTY bool
+	isTTY  bool
+	fmtStr string
+	fmu    sync.Mutex
 }
 
 const (
@@ -40,12 +42,14 @@ const (
 	bold        = "\033[1m"
 	redBold     = "\033[31;1m"
 	graphicsOff = "\033[0m"
+
+	outputLength = 75
 )
 
 var (
 	concurrency = flag.Int("concurrency", 5,
 		"number of active concurrent goroutines")
-	chanBufLen = flag.Int("chanf_buf_len", 200,
+	chanBufLen = flag.Int("chan_buf_len", 200,
 		"channel buffer length for buffers SearchRecords processed")
 	minLen    = flag.Int("min_len", 10, "the minimum word length to track")
 	totWords  = flag.Int("tot_words", 10, "show the top 'this many' words")
@@ -55,8 +59,7 @@ var (
 func main() {
 	flag.Parse()
 	if flag.NArg() < 1 {
-		fmt.Fprintf(os.Stderr,
-			"usage: %s [-concurrency #] [-min_len #] <start url>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "%s: missing start URL\n")
 		os.Exit(1)
 	}
 
@@ -76,20 +79,19 @@ func main() {
 	}
 
 	// We'll use escape sequences if stdout is not being redirected
-	// to a file.  This check may not be perfect, but it is fine
-	// for our purposes.
+	// to a file.
 	formatter := NewFormatter()
 
-	ctx, cancel := context.WithCancel(context.Background())
 	finder := newWordFinder(surl, formatter)
+	ctx, cancel := context.WithCancel(context.Background())
 
+	// Signal handlers for orderly shutdown.  Handle SIGINT and
+	// SIGTERM for now.
 	go func() {
-		// Shutdown cleanup on termination signal (SIGINT and SIGTERM
-		// for now).
 		ch := make(chan os.Signal)
 		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 		sig := <-ch
-		l := 75 - len(sig.String())
+		l := outputLength - len(sig.String())
 		log.Printf("%s%-*.*s", sig, l, l, "... draining queue")
 		cancel()
 	}()
@@ -101,7 +103,8 @@ func main() {
 func showStatus(finder *WordFinder) {
 	elist := finder.getErrors()
 	if elist == nil {
-		fmt.Printf("%-75.75s\n", "No errors occurred in run.")
+		fmt.Printf("%-*.*s\n", outputLength, outputLength,
+			"No errors occurred in run.")
 	} else {
 		for _, r := range elist {
 			fmt.Printf("'%s': error occurred: %s\n", r.url, r.err.Error())
@@ -134,6 +137,7 @@ func NewFormatter() *formatter {
 			f.isTTY = true
 		}
 	}
+	f.fmtStr = fmt.Sprintf("%%s%%-%d.%ds%%s\r", outputLength, outputLength)
 	return f
 }
 
@@ -149,7 +153,7 @@ func (f *formatter) showStatusLine(text string, interrupt bool) {
 		}
 
 		// Show links on same line.
-		line = fmt.Sprintf("%s%-75.75s%s\r", leading, text, graphicsOff)
+		line = fmt.Sprintf(f.fmtStr, leading, text, graphicsOff)
 	} else {
 		line = fmt.Sprintf("Processing link: '%s'\n", text)
 	}
