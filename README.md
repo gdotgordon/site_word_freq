@@ -42,8 +42,8 @@ for a program with a fixed number of worker threads.  The technique
 of offloading channel writes that would block to a goroutine that
 waits for access is used here.  While buffered channels are also used,
 they would still eventually fill up, and given that goroutines are very
-lightweight, the design choice of dynamic scaling this offers seems to
-work well.
+lightweight, the design choice of dynamic scalability this offers seems
+to work well for this problem.
 
 In examining the heap profile, we note that the code that parses the
 lines scanned from the various HTTP pages is a hotspot that consequently
