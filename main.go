@@ -47,9 +47,9 @@ const (
 )
 
 var (
-	concurrency = flag.Int("concurrency", 5,
+	concurrency = flag.Int("concurrency", 10,
 		"number of active concurrent goroutines")
-	chanBufLen = flag.Int("chan_buf_len", 200,
+	chanBufLen = flag.Int("chan_buf_len", 10,
 		"channel buffer length for buffers SearchRecords processed")
 	minLen    = flag.Int("min_len", 10, "the minimum word length to track")
 	totWords  = flag.Int("tot_words", 10, "show the top 'this many' words")
@@ -101,6 +101,11 @@ func main() {
 }
 
 func showStatus(finder *WordFinder) {
+	if finder.interrupt {
+		log.Printf("%-*.*s\n", outputLength, outputLength,
+			"Note: process was interrupted, results are partial.")
+	}
+
 	elist := finder.getErrors()
 	if elist == nil {
 		fmt.Printf("%-*.*s\n", outputLength, outputLength,
@@ -110,14 +115,6 @@ func showStatus(finder *WordFinder) {
 			fmt.Printf("'%s': error occurred: %s\n", r.url, r.err.Error())
 		}
 	}
-
-	rs := finder.getRunStats()
-	fmt.Printf("job channel was blocked %.2f%% of the time (%d/%d)\n",
-		float64(rs.chanBlocked)/float64(rs.chanBlocked+rs.chanFree)*100,
-		rs.chanBlocked, rs.chanBlocked+rs.chanFree)
-	fmt.Printf("main word dict: len=%d\n", len(finder.words))
-	fmt.Printf("avg words per page dict: %2.2f\n",
-		float64(finder.stats.dictTotal)/float64(rs.chanBlocked+rs.chanFree))
 	fmt.Println()
 
 	res := finder.getResults()
