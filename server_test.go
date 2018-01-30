@@ -58,7 +58,7 @@ func TestServer(t *testing.T) {
 		t.Fatalf("URL parse failed: %v\n", err)
 	}
 	ctx := context.Background()
-	finder := newWordFinder(u, NewFormatter())
+	finder := newWordFinder(u, newFormatter())
 	finder.run(ctx)
 	errs := finder.getErrors()
 	if len(errs) != 0 {
