@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/url"
 	"sort"
@@ -15,21 +16,13 @@ import (
 // It collates the results to get the longest word at the end.
 type WordFinder struct {
 	words     map[string]int
-	errRecs   []SearchRecord
+	errRecs   []*SearchRecord
 	target    string
 	startURL  *url.URL
 	filter    chan ([]string)
 	interrupt bool
 	mu        sync.Mutex
 	fmtr      *formatter
-	stats     *RunStats
-}
-
-// The RunStats are mostly for performance-tuning.
-type RunStats struct {
-	chanFree    int64
-	chanBlocked int64
-	dictTotal   int64
 }
 
 // The following two structs are for sorting the frequency map.
@@ -60,7 +53,6 @@ func newWordFinder(startURL *url.URL, f *formatter) *WordFinder {
 		target:   target,
 		filter:   make(chan []string, *chanBufLen),
 		fmtr:     f,
-		stats:    &RunStats{},
 	}
 }
 
@@ -73,7 +65,7 @@ func (wf *WordFinder) run(ctx context.Context) {
 
 	// Create and launch the goroutines.
 	visited := make(map[string]bool)
-	tasks := make(chan SearchRecord, *chanBufLen)
+	tasks := make(chan *SearchRecord, *chanBufLen)
 	var wg sync.WaitGroup
 	for i := 0; i < *concurrency; i++ {
 		wg.Add(1)
@@ -87,7 +79,7 @@ func (wf *WordFinder) run(ctx context.Context) {
 	}
 
 	// Prime the pump by feeding the start url into the work channel.
-	tasks <- SearchRecord{url: wf.startURL.String()}
+	tasks <- &SearchRecord{url: wf.startURL.String()}
 
 	// Loop until there is no more work.  By keeping a count, we know
 	// when there is no more work left.  The loop decrements once each
@@ -99,36 +91,38 @@ func (wf *WordFinder) run(ctx context.Context) {
 		// links found for a page are in a single slice).  The filter
 		// also removes any links already visited.
 		l := <-wf.filter
-		if wf.interrupt {
+
+		// If the user cancelled, swallow the new urls.
+		select {
+		case <-ctx.Done():
+			wf.interrupt = true
+			line := fmt.Sprintf("draining queue... (%d) ", cnt)
+			wf.fmtr.showStatusLine(line, wf.interrupt)
 			continue
+		default:
+			break
 		}
 
 		for _, link := range l {
 			if visited[link] == false {
 				visited[link] = true
-				// Every link sent into the "task" channel
-				// adds one to the count.  Note if we received
-				// an interrupt, we'll stop sending new tasks
-				// and wait for the queue to drain.
+				// Every link sent into the "task" channel adds
+				// one to the counter.
 				cnt++
 				select {
-				case <-ctx.Done():
-					cnt--
-					wf.interrupt = true
-				case tasks <- SearchRecord{url: link}:
+				case tasks <- &SearchRecord{url: link}:
+				default:
+					go func(link string) {
+						tasks <- &SearchRecord{url: link}
+					}(link)
 				}
 			}
 		}
 	}
 
-	// Don't leak goroutines (yeah, it's a demo, but still).
 	// Note: due to the counting in the loop above, we know
 	// that all sending and receiving of data is done, so
 	// it is safe to close the channels here.
-	if wf.interrupt {
-		log.Printf("%-*.*s\n", outputLength, outputLength,
-			"Note: process was interrupted, results are partial.")
-	}
 	close(tasks)
 	close(wf.filter)
 	wg.Wait()
@@ -142,35 +136,31 @@ func (wf *WordFinder) run(ctx context.Context) {
 func (wf *WordFinder) addLinkData(ctx context.Context,
 	sr *SearchRecord, wds map[string]int, links []string) {
 	wf.mu.Lock()
-	defer wf.mu.Unlock()
 
 	// Only append records with errors.
 	if sr.err != nil {
-		wf.errRecs = append(wf.errRecs, *sr)
+		wf.errRecs = append(wf.errRecs, sr)
 	}
 	for k, v := range wds {
 		wf.words[k] += v
 	}
+	wf.mu.Unlock()
 
 	// Only create a new goroutine to send the link if the channel
 	// would block.  One way or another, we want to keep the thread
 	// available for processing.
 	select {
 	case <-ctx.Done():
-		// Due to the nature of the counting algorithm, we need
-		// to add something to the channel, even if interrupted,
-		// so the loop counter balances out the total to 0.
+		wf.interrupt = true
 		wf.filter <- nil
-	case wf.filter <- links:
-		wf.stats.dictTotal += int64(len(wds))
-		wf.stats.chanFree++
-
 	default:
-		go func() {
-			wf.filter <- links
-		}()
-		wf.stats.dictTotal += int64(len(wds))
-		wf.stats.chanBlocked++
+		select {
+		case wf.filter <- links:
+		default:
+			go func() {
+				wf.filter <- links
+			}()
+		}
 	}
 }
 
@@ -192,12 +182,8 @@ func (wf *WordFinder) getResults() []kvPair {
 
 // Returns the search records that contained errors or
 // nil if no errors occurred.
-func (wf *WordFinder) getErrors() []SearchRecord {
+func (wf *WordFinder) getErrors() []*SearchRecord {
 	return wf.errRecs
-}
-
-func (wf *WordFinder) getRunStats() *RunStats {
-	return wf.stats
 }
 
 // The following methods are used to to sort the histogram by value.
