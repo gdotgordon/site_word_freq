@@ -1,15 +1,16 @@
 # site_word_freq
-Crawls a web site and returns the most commonly occurring words longer than a specified length.
+Crawls a web site and returns the most commonly occurring words within a specified length range.
 
 External dependencies: The *"golang.org/x/net/html"* HTML parser package is required to build.
 
 This program finds the most frequently occurring words of a
-specified minimum length for a given site.  It is essentially a
-web crawler that makes its best effort to stay within the hostname
-of the original site.  On a given page, it both scans for text, for
-which it builds a frequency histogram, plus it extracts the "href"
-links for further processing.  At the end, the accumulated word count
-results for all sites is sorted, with the most frequent ones displayed.
+specified minimum length, and optionally a maximum length,
+for a given site.  It is essentially a web crawler that makes
+its best effort to stay within the hostname of the original site.
+On a given page, it both scans for text, for which it builds a
+frequency histogram, plus it extracts the "href" links for further
+processing.  At the end, the accumulated word count results for all
+pages visited is sorted, with the most frequent ones displayed.
 
 Usage: `crawl <web site> [-pprof_port <port num>] [more config options]`
  

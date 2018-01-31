@@ -198,7 +198,7 @@ func (wf *WordFinder) getResults() []kvPair {
 		i++
 	}
 	sort.Sort(sorter)
-	cnt := *totWords
+	cnt := int(*totWords)
 	if len(sorter) < cnt {
 		cnt = len(sorter)
 	}

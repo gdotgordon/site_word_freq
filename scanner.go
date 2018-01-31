@@ -226,7 +226,10 @@ func processText(text string, wds map[string]int) {
 	res := words.FindAllString(text, -1)
 	if len(res) > 0 {
 		for _, v := range res {
-			if len(v) >= *minLen && strings.IndexByte(v, '_') == -1 {
+			length := uint(len(v))
+			if (length >= *minLen) &&
+				(*maxLen == 0 || length <= *maxLen) &&
+				(strings.IndexByte(v, '_') == -1) {
 				wds[v]++
 			}
 		}

@@ -1,9 +1,9 @@
 // This program finds the most frequently occurring words of a
-// specified minimum length for a given site.  It is essentially a
-// web crawler that makes its best effort to stay within the hostname
-// of the original site.  On a given page, it both scans for text, for
-// which it builds a frequency histogram, plus it extracts the "href"
-// links for further processing.
+// specified minimum and/or maximum length for a given site.  It
+// is essentially a web crawler that makes its best effort to stay
+// within the hostname of the original site.  On a given page, it
+// both scans for text, for which it builds a frequency histogram,
+// plus it extracts the "href" links for further processing.
 //
 // At the end, the most frequent cumulative word counts are displayed
 // in sorted order.  It also reports some statistics related to channel
@@ -42,9 +42,12 @@ var (
 		"channel buffer length for buffers SearchRecords processed")
 	dictSize    = flag.Int("dict_size", 25000, "main dictionary initial size")
 	connTimeout = flag.Int("conn_timeout", 10, "HTTP client timeout (secs)")
-	minLen      = flag.Int("min_len", 10, "the minimum word length to track")
-	totWords    = flag.Int("tot_words", 10, "show the top 'this many' words")
-	pprofPort   = flag.Int("pprof_port", 0, "if non-zero, pprof server port")
+	minLen      = flag.Uint("min_len", 5,
+		"minimum word length to track (0 => no limit)")
+	maxLen = flag.Uint("max_len", 8,
+		"the maximum word length to track (0 => no limit)")
+	totWords  = flag.Uint("tot_words", 10, "show the top 'this many' words")
+	pprofPort = flag.Int("pprof_port", 0, "if non-zero, pprof server port")
 )
 
 // A formatter for messages intended for stdout.
@@ -57,15 +60,22 @@ type formatter struct {
 func main() {
 	flag.Parse()
 	if flag.NArg() < 1 {
-		fmt.Fprintf(os.Stderr, "%s: missing start URL\n")
+		log.Fatal(fmt.Errorf("%s: missing start URL", os.Args[0]))
+		os.Exit(1)
+	}
+
+	if (*minLen == 0 && *maxLen == 0) ||
+		(*maxLen > 0 && *minLen > *maxLen) {
+		log.Fatal(fmt.Errorf("%s: invalid min/max length combination: %d, %d",
+			os.Args[0], *minLen, *maxLen))
 		os.Exit(1)
 	}
 
 	startURL := flag.Arg(0)
 	surl, err := url.Parse(startURL)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "The url '%s' is not syntactically valid\n",
-			startURL)
+		log.Fatal(fmt.Errorf("%s: The url '%s' is not syntactically valid",
+			os.Args[0], startURL))
 		os.Exit(1)
 	}
 
@@ -116,8 +126,13 @@ func showStatus(finder *WordFinder) {
 	fmt.Println()
 
 	res := finder.getResults()
-	fmt.Printf("Top %d totals for words of length >= %d:\n",
-		*totWords, *minLen)
+	if *maxLen > 0 {
+		fmt.Printf("Top %d totals for words of length %d to %d:\n",
+			*totWords, *minLen, *maxLen)
+	} else {
+		fmt.Printf("Top %d totals for words of length >= %d:\n",
+			*totWords, *minLen)
+	}
 	for i, kv := range res {
 		fmt.Printf("[%d] %s: %d\n", i+1, kv.key, kv.value)
 	}
