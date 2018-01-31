@@ -8,11 +8,6 @@
 // At the end, the most frequent cumulative word counts are displayed
 // in sorted order.  It also reports some statistics related to channel
 // usage, so in theory, we could performance tune the program.
-//
-// The program uses two channels, one for the goroutines to read URLs
-// to process, and another for the results to be sent back to the main
-// processing loop.  We use a looping and counting technique to determine
-// when we're done processing.
 package main
 
 import (
@@ -30,13 +25,6 @@ import (
 	"syscall"
 )
 
-// A formatter for messages intended for stdout.
-type formatter struct {
-	isTTY  bool
-	fmtStr string
-	fmu    sync.Mutex
-}
-
 const (
 	// Some ASCII graphics sequences.
 	bold        = "\033[1m"
@@ -51,10 +39,19 @@ var (
 		"number of active concurrent goroutines")
 	chanBufLen = flag.Int("chan_buf_len", 10,
 		"channel buffer length for buffers SearchRecords processed")
-	minLen    = flag.Int("min_len", 10, "the minimum word length to track")
-	totWords  = flag.Int("tot_words", 10, "show the top 'this many' words")
-	pprofPort = flag.Int("pprof_port", 0, "if non-zero, pprof server port")
+	dictSize    = flag.Int("dict_size", 25000, "main dictionary initial size")
+	connTimeout = flag.Int("conn_timeout", 10, "HTTP client timeout (secs)")
+	minLen      = flag.Int("min_len", 10, "the minimum word length to track")
+	totWords    = flag.Int("tot_words", 10, "show the top 'this many' words")
+	pprofPort   = flag.Int("pprof_port", 0, "if non-zero, pprof server port")
 )
+
+// A formatter for messages intended for stdout.
+type formatter struct {
+	isTTY  bool
+	fmtStr string
+	fmu    sync.Mutex
+}
 
 func main() {
 	flag.Parse()

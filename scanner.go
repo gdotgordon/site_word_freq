@@ -22,10 +22,10 @@ import (
 
 // The SearchRecord is passed to each gorutine to process a given
 // link.  Each link builds a word count of words at least as long
-// as requested length.  Note each search record will get accumulated
-// by the WordFinder.  As each search record has its own error field,
-// this gives us an organized way to catalog all the errors that
-// occurred in the processing.
+// as requested length.  These totals are then added in to the grand
+// total.  As each search record has its own error field, this
+//  us an organized way to catalog all the errors that occurred
+// in the processing.
 type SearchRecord struct {
 	url string
 	err error
@@ -44,29 +44,21 @@ var (
 		`\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]`)
 )
 
+// Read the url contents and parse the line to get embedded
+// text and extract links for future processing.
 func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
-	// Read the url contents and parse the line to get embedded
-	// text and extract links for future processing.
 	wf.fmtr.showStatusLine(sr.url, wf.interrupt)
 
 	if wf.interrupt {
 		// Drain the queue.  For the main loop to terminate, we must
-		// send some result.
+		// send some kind of result.
 		wf.addLinkData(ctx, sr, nil, nil)
 		return
 	}
 
 	// Don't redirect outside our site.
-	sr.url = html.EscapeString(sr.url)
-	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if !strings.HasSuffix(req.URL.Hostname(), wf.target) {
-				return http.ErrUseLastResponse
-			}
-			return nil
-		},
-	}
-	resp, err := client.Get(sr.url)
+	surl := html.EscapeString(sr.url)
+	resp, err := wf.client.Get(surl)
 	if err != nil {
 		log.Printf("error opening '%s': %v\n", sr.url, err)
 		sr.err = err
@@ -76,10 +68,8 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		// If the page is forbidden or not found, skip it with no error.
-		if resp.StatusCode != 403 && resp.StatusCode != 404 {
-			sr.err = fmt.Errorf("HTTP status %d received", resp.StatusCode)
-		}
+		sr.err = fmt.Errorf("HTTP status %d : %s", resp.StatusCode,
+			http.StatusText(resp.StatusCode))
 		wf.addLinkData(ctx, sr, nil, nil)
 		return
 	}
@@ -102,7 +92,7 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 
 	br := bufio.NewReader(resp.Body)
 	if m == "text/html" {
-		sr.processHTML(ctx, br, wf, sr.url)
+		sr.processHTML(ctx, br, wf, surl)
 	} else {
 		// If it's not HTML and not bianry, take a swag at parsing
 		// it as line-oriented text.
@@ -125,9 +115,9 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 }
 
 func (sr *SearchRecord) processHTML(ctx context.Context,
-	r io.Reader, wf *WordFinder, baseURL string) {
+	r io.Reader, wf *WordFinder, base string) {
 
-	var base *url.URL
+	var baseURL *url.URL
 
 	links := make([]string, 0)
 	wds := make(map[string]int)
@@ -204,14 +194,15 @@ func (sr *SearchRecord) processHTML(ctx context.Context,
 
 				// Ensure we have a full url.
 				if !u.IsAbs() {
-					if base == nil {
-						base, err = url.Parse(baseURL)
+					if baseURL == nil {
+						baseURL, err = url.Parse(base)
 						if err != nil {
 							log.Printf("Warning: URL parse error: %v\n", err)
 							continue
 						}
 					}
-					u = base.ResolveReference(u)
+
+					u = baseURL.ResolveReference(u)
 					av = u.String()
 				}
 

@@ -6,10 +6,12 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 // The WordFinder is the struct that controls the overall processing.
@@ -22,6 +24,7 @@ type WordFinder struct {
 	filter    chan ([]string)
 	interrupt bool
 	mu        sync.Mutex
+	client    *http.Client
 	fmtr      *formatter
 }
 
@@ -39,19 +42,31 @@ var _ sort.Interface = (*kvSorter)(nil)
 // Creates a new WordFinder with the given start URL.
 func newWordFinder(startURL *url.URL, f *formatter) *WordFinder {
 
-	// Restrict crawling to within initial site for a reasonable demo.
-	// So a site that has our host in it (we don't need the www part
-	// to comapre) is a link we'll follow/
+	// Restrict crawling to within the initial site.  Thus a
+	// site that has our host in it is a link we'll follow
+	// (we don't need the www part to compare).
 	target := startURL.Hostname()
 	if strings.HasPrefix(target, "www.") {
 		target = target[4:]
 	}
 
+	// The one client is thread safe for use by the scanners.
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if !strings.HasSuffix(req.URL.Hostname(), target) {
+				return http.ErrUseLastResponse
+			}
+			return nil
+		},
+		Timeout: time.Duration(*connTimeout) * time.Second,
+	}
+
 	return &WordFinder{
-		words:    make(map[string]int, 25000),
+		words:    make(map[string]int, *dictSize),
 		startURL: startURL,
 		target:   target,
 		filter:   make(chan []string, *chanBufLen),
+		client:   client,
 		fmtr:     f,
 	}
 }
@@ -63,7 +78,8 @@ func (wf *WordFinder) run(ctx context.Context) {
 
 	log.Printf("Beginning run, type Ctrl-C to interrupt.\n\n")
 
-	// Create and launch the goroutines.
+	// Create and launch the goroutines that crawl and
+	// gather word counts.
 	visited := make(map[string]bool)
 	tasks := make(chan *SearchRecord, *chanBufLen)
 	var wg sync.WaitGroup
@@ -88,8 +104,9 @@ func (wf *WordFinder) run(ctx context.Context) {
 
 		// At the start of each loop iteration, we block on the "filter"
 		// channel, which contains results from each page scan (all the
-		// links found for a page are in a single slice).  The filter
-		// also removes any links already visited.
+		// links found for a page are in a single slice).  Note since
+		// we are inside the loop, we are guaranteed to get more reads,
+		// and the interrupt-handling is designed to keep this invariant.
 		l := <-wf.filter
 
 		// If the user cancelled, swallow the new urls.
@@ -103,11 +120,14 @@ func (wf *WordFinder) run(ctx context.Context) {
 			break
 		}
 
+		// Process the links seen in the page scan read from the channel.
 		for _, link := range l {
+			// Don't visit the same link twice.
 			if visited[link] == false {
 				visited[link] = true
 				// Every link sent into the "task" channel adds
-				// one to the counter.
+				// one to the counter.  The loop decremnts the count
+				// by one at the end of each iteration.
 				cnt++
 				select {
 				case tasks <- &SearchRecord{url: link}:
@@ -128,11 +148,13 @@ func (wf *WordFinder) run(ctx context.Context) {
 	wg.Wait()
 }
 
-// When a goroutine is finished processing a link, it transfers it's
+// When a goroutine is finished processing a link, it transfers its
 // link and word count data to the finder.  We could eliminate the
 // mutex here and have the dictionary merge happen in the channel
 // read loop, but then the unmerged dictionaries would pile up
-// in the channel buffers, so this is a time/sapce tradeoff.
+// in the channel buffers or wiaiting goroutines, so this is a
+// time/sapce tradeoff, justified by the fact that the operations
+// under the mutex are very fast.
 func (wf *WordFinder) addLinkData(ctx context.Context,
 	sr *SearchRecord, wds map[string]int, links []string) {
 	wf.mu.Lock()
@@ -154,6 +176,9 @@ func (wf *WordFinder) addLinkData(ctx context.Context,
 		wf.interrupt = true
 		wf.filter <- nil
 	default:
+		// The rarely expected race condition of the interrupt
+		// happening after case default was selected is benign.
+		// We'll still terminate when all the data is flushed.
 		select {
 		case wf.filter <- links:
 		default:
