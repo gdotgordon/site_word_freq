@@ -152,7 +152,7 @@ func (wf *WordFinder) run(ctx context.Context) {
 // link and word count data to the finder.  We could eliminate the
 // mutex here and have the dictionary merge happen in the channel
 // read loop, but then the unmerged dictionaries would pile up
-// in the channel buffers or wiaiting goroutines, so this is a
+// in the channel buffers or waiting goroutines, so this is a
 // time/sapce tradeoff, justified by the fact that the operations
 // under the mutex are very fast.
 func (wf *WordFinder) addLinkData(ctx context.Context,
