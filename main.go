@@ -31,6 +31,7 @@ const (
 	redBold     = "\033[31;1m"
 	graphicsOff = "\033[0m"
 
+	// Length of lines that overwrite the previous line.
 	outputLength = 75
 )
 

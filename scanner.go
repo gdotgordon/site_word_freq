@@ -192,7 +192,7 @@ func (sr *SearchRecord) processHTML(ctx context.Context,
 					}
 				}
 
-				// Ensure we have a full url.
+				// Ensure that we have a full url.
 				if !u.IsAbs() {
 					if baseURL == nil {
 						baseURL, err = url.Parse(base)

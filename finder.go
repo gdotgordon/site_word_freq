@@ -14,8 +14,8 @@ import (
 	"time"
 )
 
-// The WordFinder is the struct that controls the overall processing.
-// It collates the results to get the longest word at the end.
+// The WordFinder controls the overall processing.  It collates the
+// results to get the longest word at the end.
 type WordFinder struct {
 	words     map[string]int
 	errRecs   []*SearchRecord
