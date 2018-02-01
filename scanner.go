@@ -41,7 +41,7 @@ var (
 	// they are not recognized by the compiler as a Unicode character, just
 	// a plain sequence of characters.
 	uliteral = regexp.MustCompile(
-		`\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]`)
+		`\\u[0-9a-fA-F]{4}`)
 )
 
 // Read the url contents and parse the line to get embedded
