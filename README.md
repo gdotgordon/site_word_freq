@@ -54,10 +54,3 @@ for the results to be sent back to the main processing loop.  We use
 a looping and counting technique that determines when we're done processing.
 This technique is demonstrated in Donovan and Kernighan's "The Go Programming
 Language" book.
-
-In examining the heap profile, we note that the code that parses the
-lines scanned from the various HTTP pages is a hotspot that consequently
-has been optimized some.  In terms of CPU, unsurprisingly, the
-synchronization mechanisms use significant time, as does the regular
-expression parser that extracts words from text (space separators
-are not sufficient to parse words).
