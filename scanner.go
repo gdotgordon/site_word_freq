@@ -126,13 +126,14 @@ func (sr *SearchRecord) processHTML(ctx context.Context,
 		tt := z.Next()
 		switch tt {
 		case html.ErrorToken:
-			// Reading EOF is the normal end of processsing for the page.
-			// Regardless of the error, we'll send what we have to the
-			// channel.
+			// Reading EOF is the normal end of processsing for
+			// the page.  Regardless of the error, we'll send what
+			// we have to the  channel.
 			e := z.Err()
 			if e != io.EOF {
 				sr.err = z.Err()
-				log.Printf("error parsing '%s': %v\n", sr.url, e)
+				log.Printf("error parsing '%s': %v\n", sr.url,
+					e)
 			}
 			wf.addLinkData(ctx, sr, wds, links)
 			return
@@ -178,9 +179,9 @@ func (sr *SearchRecord) processHTML(ctx context.Context,
 					continue
 				}
 
-				// Remove any fragment, as it is just a location within
-				// a page, and we don't want to scan two pages that are
-				// otherwsie identical twice.
+				// Remove any fragment, as it is just a location
+				// within a page, and we don't want to scan two
+				// pages that are otherwsie identical twice.
 				if u.Fragment != "" {
 					u.Fragment = ""
 					av = u.String()
@@ -206,7 +207,7 @@ func (sr *SearchRecord) processHTML(ctx context.Context,
 				}
 
 				// To keep things from ballooning out of
-				// control, only crawl withiin the current site,
+				// control, only crawl within the current site,
 				// or a reasonable stab at such an equivalency.
 				if strings.HasSuffix(u.Hostname(), wf.target) {
 					links = append(links, av)
