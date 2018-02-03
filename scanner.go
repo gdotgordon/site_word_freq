@@ -55,9 +55,7 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 		return
 	}
 
-	// Don't redirect outside our site.
-	surl := html.EscapeString(sr.url)
-	resp, err := wf.client.Get(surl)
+	resp, err := wf.client.Get(sr.url)
 	if err != nil {
 		log.Printf("error opening '%s': %v\n", sr.url, err)
 		sr.err = err
@@ -91,32 +89,17 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 
 	br := bufio.NewReader(resp.Body)
 	if m == "text/html" {
-		sr.processHTML(ctx, br, wf, surl)
+		sr.processHTML(ctx, br, wf)
 	} else {
-		// If it's not HTML and not bianry, take a swag at parsing
-		// it as line-oriented text.
-		wds := make(map[string]int)
-		for {
-			b, err := br.ReadBytes('\n')
-			if err != nil && err != io.EOF {
-				sr.err = err
-				break
-			}
-			if b != nil && len(b) > 0 {
-				processText(string(b), wds)
-			}
-			if err == io.EOF {
-				break
-			}
-		}
-		wf.addLinkData(ctx, sr, wds, nil)
+		sr.processAsText(ctx, br, wf)
 	}
 }
 
 func (sr *SearchRecord) processHTML(ctx context.Context,
-	r io.Reader, wf *WordFinder, base string) {
+	r io.Reader, wf *WordFinder) {
 
 	var baseURL *url.URL
+	base := sr.url
 
 	links := make([]string, 0)
 	wds := make(map[string]int)
@@ -132,14 +115,14 @@ func (sr *SearchRecord) processHTML(ctx context.Context,
 			e := z.Err()
 			if e != io.EOF {
 				sr.err = z.Err()
-				log.Printf("error parsing '%s': %v\n", sr.url,
+				log.Printf("error parsing '%s': %v\n", base,
 					e)
 			}
 			wf.addLinkData(ctx, sr, wds, links)
 			return
 		case html.TextToken:
 			if !inAnchor {
-				processText(string(z.Text()), wds)
+				scanText(string(z.Text()), wds)
 			}
 			inAnchor = false
 		case html.StartTagToken:
@@ -164,18 +147,32 @@ func (sr *SearchRecord) processHTML(ctx context.Context,
 				}
 
 				// Skip fragment links to the same page
-				// (i.e. the entire link is a fragment).
+				// (i.e. the entire link is a fragment),
+				// as well as "{...}" templates.
 				av := strings.TrimSpace(string(v))
-				if strings.HasPrefix(av, "#") {
+				if strings.HasPrefix(av, "#") ||
+					strings.HasPrefix(av, "{") {
 					continue
+				}
+
+				// Fix broken query strings using the wrong escape
+				// escape sequence for blank.  Go expects "+"", not
+				// "%20", in the query string.
+				qndx := strings.LastIndexByte(av, '?')
+				if qndx != -1 {
+					q := av[qndx:]
+					if strings.Contains(q, "%20") {
+						nstr := strings.Replace(q, "%20", "+", -1)
+						av = av[:qndx] + nstr
+					}
 				}
 
 				// Make sure the url is valid format.
 				u, err := url.Parse(av)
 				if err != nil {
-					fmt.Printf("'%s'\n", av)
-					log.Printf("Warning: parse error on '%s': %v\n",
-						av, err)
+					log.Printf(
+						"Warning: from '%s': parse error on '%s': %v\n",
+						base, av, err)
 					continue
 				}
 
@@ -219,9 +216,29 @@ func (sr *SearchRecord) processHTML(ctx context.Context,
 	}
 }
 
+// Take a swag at parsing the content as line-oriented text.
+func (sr *SearchRecord) processAsText(ctx context.Context,
+	br *bufio.Reader, wf *WordFinder) {
+	wds := make(map[string]int)
+	for {
+		b, err := br.ReadBytes('\n')
+		if err != nil && err != io.EOF {
+			sr.err = err
+			break
+		}
+		if b != nil && len(b) > 0 {
+			scanText(string(b), wds)
+		}
+		if err == io.EOF {
+			break
+		}
+	}
+	wf.addLinkData(ctx, sr, wds, nil)
+}
+
 // Extract words from text.  If they are long enough, record
 // them in the map.
-func processText(text string, wds map[string]int) {
+func scanText(text string, wds map[string]int) {
 	text = convertUnicodeEscapes(text)
 	res := words.FindAllString(text, -1)
 	if len(res) > 0 {
