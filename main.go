@@ -161,6 +161,9 @@ func (f *formatter) showStatusLine(text string, interrupt bool) {
 		} else {
 			leading = bold
 		}
+		if len(text) > outputLength {
+			text = text[:outputLength-3] + "..."
+		}
 
 		// Show links on same line.
 		line = fmt.Sprintf(f.fmtStr, leading, text, graphicsOff)
