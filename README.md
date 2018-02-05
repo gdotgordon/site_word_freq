@@ -28,29 +28,34 @@ goroutines or writes on closed channels, etc.).
 The sequence of sites being visited is displayed on a single line, and
 if interrupted, the remaining length is displayed as the queue is drained.
 
-Architecturally it uses the following elements:
-- A configurable fixed number of HTML processing goroutines with
-the performance enhancement of creating a new goroutine to actually
-submit the child URLs from that page if the send channel would block.
-It is useful to be able to scale a backend service without rebuilding it.
+## Archtecture
+Architecturally the solution uses the following elements:
+- A configurable (via a flag) fixed number of HTML processing
+goroutines with the performance enhancement of creating a new
+goroutine to submit the child URLs from that page if the send
+channel would block.  It is useful to be able to tune a backend
+service without rebuilding it.  Also, we want to limit the number
+of simultaneously open HTTP connections, which this solution accomplishes.
 - Rich error reporting per goroutine.  This is accomplished by
 sending a struct which contains an error field in addition to the
 input parameters into the task channel.  Using this technique, we
 can clearly sort out which errors are tied to which URLs.
 
-A geometrically expanding algorithm such as a web crawler is a challenge
-for a program with a fixed number of worker threads.  The technique
-mentioned above, of offloading channel writes that would block to a
-goroutine proves effective.  While buffered channels are configured as
-well, they will (for the typical website) still eventually fill up and
-block. Given that goroutines are lightweight, the dynamic scalability
-of holding blocked channel writes in a goroutine seems to work well here.
+## Implmentation Notes
+The use of Go channels is an elegant and efficient solution to a
+"conceptually" recursive problem.  By avoiding recursion, we save
+on all the stack space that would have been used in pure recursion,
+at the cost of the synchronization and queueing mechanisms of the
+two channels, plus the overhead of goroutines that are dynamically
+created waiting for channel space to free up (if needed).  Instead of
+deep execution stacks, we essentially end up with lists of URLs that
+need to be traversed, and the overhead of managing those lists.
 
-Another challenge in implementing a recursive-style algorithm
-such as a crawler using a fixed thread pool is determining when the
-processing is complete.  To accomplish this, the program uses two
-channels, one for the goroutines to read URLs to process, and another
-for the results to be sent back to the main processing loop.  We use
-a looping and counting technique that determines when we're done processing.
-This technique is demonstrated in Donovan and Kernighan's "The Go Programming
-Language" book.
+One challenge in implementing a recursive "producer/consumer" style
+algorithm using channels is knowing when we are done, and can safely
+close all the channels.  To accomplish this, the program uses two
+channels, one to read new URLs to be processed (producer), and another for
+sending the read links out for processing (consumer).  We use a looping
+and counting technique such that every new URL read is guaranteed to get
+one response back.  This technique is demonstrated in Donovan and Kernighan's
+"The Go Programming Language" book.
