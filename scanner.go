@@ -48,10 +48,17 @@ var (
 func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 	wf.fmtr.showStatusLine(sr.url, wf.interrupt)
 
+	// It is required that we write something to the
+	// result channel, even if it is empty data, to
+	// ensure that the count eventually reaches zero.
+	var links []string
+	var words map[string]int
+	defer func() {
+		wf.addLinkData(ctx, sr, words, links)
+	}()
+
 	if wf.interrupt {
-		// Drain the queue.  For the main loop to terminate, we must
-		// send some kind of result.
-		wf.addLinkData(ctx, sr, nil, nil)
+		// Short circuit traversal if cleaning up.
 		return
 	}
 
@@ -59,7 +66,6 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 	if err != nil {
 		log.Printf("error opening '%s': %v\n", sr.url, err)
 		sr.err = err
-		wf.addLinkData(ctx, sr, nil, nil)
 		return
 	}
 	defer resp.Body.Close()
@@ -67,36 +73,32 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 	if resp.StatusCode >= 400 {
 		sr.err = fmt.Errorf("HTTP status %d : %s", resp.StatusCode,
 			http.StatusText(resp.StatusCode))
-		wf.addLinkData(ctx, sr, nil, nil)
 		return
 	}
 	ct := resp.Header.Get("Content-type")
 	if ct == "" {
-		wf.addLinkData(ctx, sr, nil, nil)
 		return
 	}
 	m, _, err := mime.ParseMediaType(ct)
 	if err != nil {
 		log.Printf("error parsing content type '%s': %v\n", ct, err)
 		sr.err = err
-		wf.addLinkData(ctx, sr, nil, nil)
 		return
 	}
-	if ct == "application/binary" {
-		wf.addLinkData(ctx, sr, nil, nil)
+	if m == "application/binary" {
 		return
 	}
 
 	br := bufio.NewReader(resp.Body)
 	if m == "text/html" {
-		sr.processHTML(ctx, br, wf)
+		words, links = sr.processHTML(ctx, br, wf)
 	} else {
-		sr.processAsText(ctx, br, wf)
+		words = sr.processAsText(ctx, br, wf)
 	}
 }
 
 func (sr *SearchRecord) processHTML(ctx context.Context,
-	r io.Reader, wf *WordFinder) {
+	r io.Reader, wf *WordFinder) (map[string]int, []string) {
 
 	var baseURL *url.URL
 	base := sr.url
@@ -118,8 +120,7 @@ func (sr *SearchRecord) processHTML(ctx context.Context,
 				log.Printf("error parsing '%s': %v\n", base,
 					e)
 			}
-			wf.addLinkData(ctx, sr, wds, links)
-			return
+			return wds, links
 		case html.TextToken:
 			if !inAnchor {
 				scanText(string(z.Text()), wds)
@@ -218,7 +219,7 @@ func (sr *SearchRecord) processHTML(ctx context.Context,
 
 // Take a swag at parsing the content as line-oriented text.
 func (sr *SearchRecord) processAsText(ctx context.Context,
-	br *bufio.Reader, wf *WordFinder) {
+	br *bufio.Reader, wf *WordFinder) map[string]int {
 	wds := make(map[string]int)
 	for {
 		b, err := br.ReadBytes('\n')
@@ -233,7 +234,7 @@ func (sr *SearchRecord) processAsText(ctx context.Context,
 			break
 		}
 	}
-	wf.addLinkData(ctx, sr, wds, nil)
+	return wds
 }
 
 // Extract words from text.  If they are long enough, record
