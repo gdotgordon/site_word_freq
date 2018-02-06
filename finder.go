@@ -81,69 +81,85 @@ func (wf *WordFinder) run(ctx context.Context) {
 	// Create and launch the goroutines that crawl and
 	// gather word counts.
 	visited := make(map[string]bool)
-	tasks := make(chan *SearchRecord, *chanBufLen)
+	search := make(chan string, *chanBufLen)
 	var wg sync.WaitGroup
 	for i := 0; i < *concurrency; i++ {
 		wg.Add(1)
-		go func() {
+		go func(tasks <-chan string) {
 			defer wg.Done()
 
 			for rec := range tasks {
-				rec.processLink(ctx, wf)
+				sr := SearchRecord{url: rec}
+				sr.processLink(ctx, wf)
 			}
-		}()
+		}(search)
 	}
 
-	// Prime the pump by feeding the start url into the work channel.
-	tasks <- &SearchRecord{url: wf.startURL.String()}
+	// The function definition for the main processing loop.
+	loopFunc := func(tasks chan<- string, filter <-chan []string) {
 
-	// Loop until there is no more work.  By keeping a count, we know
-	// when there is no more work left.  The loop decrements once each
-	// time through to balance the result of adding a new search task.
-	for cnt := 1; cnt > 0; cnt-- {
+		// Prime the pump by feeding start url into the work channel.
+		tasks <- wf.startURL.String()
 
-		// At the start of each loop iteration, we block on the "filter"
-		// channel, which contains results from each page scan (all the
-		// links found for a page are in a single slice).  Note since
-		// we are inside the loop, we are guaranteed to get more reads,
-		// and the interrupt-handling is designed to keep this invariant.
-		l := <-wf.filter
+		// Loop until there is no more work.  By keeping a count, we
+		// know when there is no more work left.  The loop decrements
+		// once each time through to balance the result of adding a new
+		// search task.
+		for cnt := 1; cnt > 0; cnt-- {
 
-		// If the user cancelled, swallow the new urls.
-		select {
-		case <-ctx.Done():
-			wf.interrupt = true
-			line := fmt.Sprintf("draining queue... (%d) ", cnt)
-			wf.fmtr.showStatusLine(line, wf.interrupt)
-			continue
-		default:
-			break
-		}
+			// At the start of each loop iteration, we block on the
+			// "filter" channel, which contains results from each
+			// page scan (all the links found for a page are in a
+			// single slice).  Note since we are inside the loop,
+			// we are guaranteed to get more reads,  and the
+			// interrupt-handling preserves this invariant.
+			l := <-filter
 
-		// Process the links seen in the page scan read from the channel.
-		for _, link := range l {
-			// Don't visit the same link twice.
-			if visited[link] == false {
-				visited[link] = true
-				// Every link sent into the "task" channel adds
-				// one to the counter.  The loop decremnts the count
-				// by one at the end of each iteration.
-				cnt++
-				select {
-				case tasks <- &SearchRecord{url: link}:
-				default:
-					go func(link string) {
-						tasks <- &SearchRecord{url: link}
-					}(link)
+			// If the user cancelled, swallow the new urls.
+			select {
+			case <-ctx.Done():
+				wf.interrupt = true
+				line := fmt.Sprintf("draining queue... (%d) ",
+					cnt)
+				wf.fmtr.showStatusLine(line, wf.interrupt)
+				continue
+			default:
+				break
+			}
+
+			// Process the links seen in the page scan read from
+			// the channel.
+			for _, link := range l {
+				// Don't visit the same link twice.
+				if visited[link] == false {
+					visited[link] = true
+					// Every link sent into the "task"
+					// channel adds one to the counter.
+					//  The loop decremnts the count by one
+					// at the end of each iteration.
+					cnt++
+					select {
+					case tasks <- link:
+					default:
+						go func(link string) {
+							tasks <- link
+						}(link)
+					}
 				}
 			}
 		}
+		// Note: due to the counting in the loop above, we know
+		// that all sending and receiving of data is done, so
+		// it is safe to close the write channel here.
+		close(tasks)
 	}
 
-	// Note: due to the counting in the loop above, we know
-	// that all sending and receiving of data is done, so
-	// it is safe to close the channels here.
-	close(tasks)
+	// Block, waiting for the loop to finish, as there is nothing
+	// else we need to do here.  We could trivially transform this into
+	// a goroutine invocation if needed.
+	loopFunc(search, wf.filter)
+
+	// As above, all processing is done, so close the other channel.
 	close(wf.filter)
 	wg.Wait()
 }
@@ -153,40 +169,44 @@ func (wf *WordFinder) run(ctx context.Context) {
 // mutex here and have the dictionary merge happen in the channel
 // read loop, but then the unmerged dictionaries would pile up
 // in the channel buffers or waiting goroutines, so this is a
-// time/sapce tradeoff, justified by the fact that the operations
-// under the mutex are very fast.
+// time/sapce tradeoff, as merging the data here is fast.
 func (wf *WordFinder) addLinkData(ctx context.Context,
 	sr *SearchRecord, wds map[string]int, links []string) {
-	wf.mu.Lock()
+	if (wds != nil && len(wds) > 0) || links != nil {
+		wf.mu.Lock()
 
-	// Only append records with errors.
-	if sr.err != nil {
-		wf.errRecs = append(wf.errRecs, sr)
+		// Only append records with errors.
+		if sr.err != nil {
+			wf.errRecs = append(wf.errRecs, sr)
+		}
+		for k, v := range wds {
+			wf.words[k] += v
+		}
+		wf.mu.Unlock()
 	}
-	for k, v := range wds {
-		wf.words[k] += v
-	}
-	wf.mu.Unlock()
 
-	// Only create a new goroutine to send the link if the channel
-	// would block.  One way or another, we want to keep the thread
-	// available for processing.
-	select {
-	case <-ctx.Done():
-		wf.interrupt = true
-		wf.filter <- nil
-	default:
-		// The rarely expected race condition of the interrupt
-		// happening after case default was selected is benign.
-		// We'll still terminate when all the data is flushed.
+	sendData := func(filter chan<- []string) {
+		// Only create a new goroutine to send the link if the channel
+		// would block.  One way or another, we want to keep the thread
+		// available for processing.
 		select {
-		case wf.filter <- links:
+		case <-ctx.Done():
+			wf.interrupt = true
+			filter <- nil
 		default:
-			go func() {
-				wf.filter <- links
-			}()
+			// The rarely expected race condition of the interrupt
+			// happening after case default was selected is benign.
+			// We'll still terminate when all the data is flushed.
+			select {
+			case filter <- links:
+			default:
+				go func() {
+					filter <- links
+				}()
+			}
 		}
 	}
+	sendData(wf.filter)
 }
 
 // Show any errors and the top word counts.
