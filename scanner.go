@@ -91,14 +91,14 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 
 	br := bufio.NewReader(resp.Body)
 	if m == "text/html" {
-		words, links = sr.processHTML(ctx, br, wf)
+		words, links = sr.processHTML(ctx, br, wf.target)
 	} else {
-		words = sr.processAsText(ctx, br, wf)
+		words = sr.processAsText(ctx, br)
 	}
 }
 
 func (sr *SearchRecord) processHTML(ctx context.Context,
-	r io.Reader, wf *WordFinder) (map[string]int, []string) {
+	r io.Reader, target string) (map[string]int, []string) {
 
 	var baseURL *url.URL
 	base := sr.url
@@ -207,7 +207,7 @@ func (sr *SearchRecord) processHTML(ctx context.Context,
 				// To keep things from ballooning out of
 				// control, only crawl within the current site,
 				// or a reasonable stab at such an equivalency.
-				if strings.HasSuffix(u.Hostname(), wf.target) {
+				if strings.HasSuffix(u.Hostname(), target) {
 					links = append(links, av)
 				}
 			}
@@ -219,7 +219,7 @@ func (sr *SearchRecord) processHTML(ctx context.Context,
 
 // Take a swag at parsing the content as line-oriented text.
 func (sr *SearchRecord) processAsText(ctx context.Context,
-	br *bufio.Reader, wf *WordFinder) map[string]int {
+	br *bufio.Reader) map[string]int {
 	wds := make(map[string]int)
 	for {
 		b, err := br.ReadBytes('\n')
