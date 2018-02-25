@@ -1,7 +1,7 @@
 # site_word_freq
 Crawls a web site and returns the most commonly occurring words within a specified length range.
 
-External dependencies: The ["golang.org/x/net/html"] HTML parser package is required to build.
+External dependencies: The *"golang.org/x/net/html"* HTML parser package is required to build.
 
 This program finds the most frequently occurring words of a
 specified minimum length, and optionally a maximum length,
