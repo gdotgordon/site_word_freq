@@ -92,6 +92,7 @@ func main() {
 
 	finder := newWordFinder(surl, formatter)
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// Signal handlers for orderly shutdown.  Handle SIGINT and
 	// SIGTERM for now.

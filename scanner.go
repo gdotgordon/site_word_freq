@@ -61,8 +61,9 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 		// Short circuit traversal if cleaning up.
 		return
 	}
-
-	resp, err := wf.client.Get(sr.url)
+	req, err := http.NewRequest(http.MethodGet, sr.url, nil)
+	req = req.WithContext(ctx)
+	resp, err := wf.client.Do(req)
 	if err != nil {
 		log.Printf("error opening '%s': %v\n", sr.url, err)
 		sr.err = err
