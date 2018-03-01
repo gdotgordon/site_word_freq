@@ -64,9 +64,17 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 	req, err := http.NewRequest(http.MethodGet, sr.url, nil)
 	req = req.WithContext(ctx)
 	resp, err := wf.client.Do(req)
-	if err != nil {
-		log.Printf("error opening '%s': %v\n", sr.url, err)
-		sr.err = err
+	if err != nil && err != context.Canceled {
+		if ue, ok := err.(*url.Error); ok {
+			if ue.Err == context.Canceled {
+				err = nil
+			}
+		}
+
+		if err != nil {
+			log.Printf("error opening '%s': %v\n", sr.url, err)
+			sr.err = err
+		}
 		return
 	}
 	defer resp.Body.Close()
@@ -116,7 +124,7 @@ func (sr *SearchRecord) processHTML(ctx context.Context,
 			// the page.  Regardless of the error, we'll send what
 			// we have to the  channel.
 			e := z.Err()
-			if e != io.EOF {
+			if e != io.EOF && e != context.Canceled {
 				sr.err = z.Err()
 				log.Printf("error parsing '%s': %v\n", base,
 					e)

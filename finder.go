@@ -141,13 +141,12 @@ func (wf *WordFinder) run(ctx context.Context) {
 					select {
 					case tasks <- link:
 					default:
-						go func(link string) {
-							tasks <- link
-						}(link)
+						cnt--
 					}
 				}
 			}
 		}
+
 		// Note: due to the counting in the loop above, we know
 		// that all sending and receiving of data is done, so
 		// it is safe to close the write channel here.
@@ -193,17 +192,7 @@ func (wf *WordFinder) addLinkData(ctx context.Context,
 		case <-ctx.Done():
 			wf.interrupt = true
 			filter <- nil
-		default:
-			// The rarely expected race condition of the interrupt
-			// happening after case default was selected is benign.
-			// We'll still terminate when all the data is flushed.
-			select {
-			case filter <- links:
-			default:
-				go func() {
-					filter <- links
-				}()
-			}
+		case filter <- links:
 		}
 	}
 	sendData(wf.filter)
