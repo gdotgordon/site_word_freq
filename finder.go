@@ -106,7 +106,6 @@ func (wf *WordFinder) run(ctx context.Context) {
 		// once each time through to balance the result of adding a new
 		// search task.
 		for cnt := 1; cnt > 0; cnt-- {
-
 			// At the start of each loop iteration, we block on the
 			// "filter" channel, which contains results from each
 			// page scan (all the links found for a page are in a
@@ -131,18 +130,23 @@ func (wf *WordFinder) run(ctx context.Context) {
 			// the channel.
 			for _, link := range l {
 				// Don't visit the same link twice.
-				if visited[link] == false {
-					visited[link] = true
-					// Every link sent into the "task"
-					// channel adds one to the counter.
-					//  The loop decremnts the count by one
-					// at the end of each iteration.
-					cnt++
-					select {
-					case tasks <- link:
-					default:
-						cnt--
-					}
+				if visited[link] == true {
+					continue
+				}
+				visited[link] = true
+
+				// Every link sent into the "task"
+				// channel adds one to the counter.
+				//  The loop decremnts the count by one
+				// at the end of each iteration.
+				cnt++
+				select {
+				case tasks <- link:
+				default:
+					link := link
+					go func() {
+						tasks <- link
+					}()
 				}
 			}
 		}
@@ -193,6 +197,8 @@ func (wf *WordFinder) addLinkData(ctx context.Context,
 			wf.interrupt = true
 			filter <- nil
 		case filter <- links:
+		default:
+			go func() { filter <- links }()
 		}
 	}
 	sendData(wf.filter)

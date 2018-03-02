@@ -99,6 +99,6 @@ func dotestConvert(t *testing.T, data []byte, expected string) {
 	s := string(data)
 	res := convertUnicodeEscapes(s)
 	if convertUnicodeEscapes(s) != expected {
-		t.Fatalf("unexpected result: %\n", res)
+		t.Fatalf("unexpected result: %s\n", res)
 	}
 }

@@ -62,6 +62,11 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 		return
 	}
 	req, err := http.NewRequest(http.MethodGet, sr.url, nil)
+	if err != nil {
+		log.Printf("error creating request '%s': %v\n", sr.url, err)
+		sr.err = err
+		return
+	}
 	req = req.WithContext(ctx)
 	resp, err := wf.client.Do(req)
 	if err != nil && err != context.Canceled {
