@@ -63,20 +63,16 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 	}
 	req, err := http.NewRequest(http.MethodGet, sr.url, nil)
 	if err != nil {
-		log.Printf("error creating request '%s': %v\n", sr.url, err)
-		sr.err = err
+		if !isCancel(err) {
+			log.Printf("error creating request '%s': %v\n", sr.url, err)
+			sr.err = err
+		}
 		return
 	}
 	req = req.WithContext(ctx)
 	resp, err := wf.client.Do(req)
-	if err != nil && err != context.Canceled {
-		if ue, ok := err.(*url.Error); ok {
-			if ue.Err == context.Canceled {
-				err = nil
-			}
-		}
-
-		if err != nil {
+	if err != nil {
+		if !isCancel(err) {
 			log.Printf("error opening '%s': %v\n", sr.url, err)
 			sr.err = err
 		}
@@ -311,4 +307,14 @@ func convertUnicodeEscapes(text string) string {
 	// Unicode sequence.
 	res = append(res, b[svloc:]...)
 	return string(res)
+}
+
+func isCancel(err error) bool {
+	if err == nil || err == context.Canceled {
+		return true
+	}
+	if ue, ok := err.(*url.Error); ok {
+		return ue.Err == context.Canceled
+	}
+	return false
 }

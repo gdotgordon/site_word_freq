@@ -38,7 +38,7 @@ const (
 var (
 	concurrency = flag.Int("concurrency", 10,
 		"number of active concurrent goroutines")
-	chanBufLen = flag.Int("chan_buf_len", 10,
+	chanBufLen = flag.Int("chan_buf_len", 0,
 		"channel buffer length for buffers SearchRecords processed")
 	dictSize    = flag.Int("dict_size", 25000, "main dictionary initial size")
 	connTimeout = flag.Int("conn_timeout", 10, "HTTP client timeout (secs)")

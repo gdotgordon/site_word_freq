@@ -130,7 +130,7 @@ func (wf *WordFinder) run(ctx context.Context) {
 			// the channel.
 			for _, link := range l {
 				// Don't visit the same link twice.
-				if visited[link] == true {
+				if visited[link] {
 					continue
 				}
 				visited[link] = true
