@@ -65,7 +65,7 @@ func newWordFinder(startURL *url.URL, f *formatter) *WordFinder {
 		words:    make(map[string]int, *dictSize),
 		startURL: startURL,
 		target:   target,
-		filter:   make(chan []string, *chanBufLen),
+		filter:   make(chan []string),
 		client:   client,
 		fmtr:     f,
 	}
@@ -81,18 +81,34 @@ func (wf *WordFinder) run(ctx context.Context) {
 	// Create and launch the goroutines that crawl and
 	// gather word counts.
 	visited := make(map[string]bool)
-	search := make(chan string, *chanBufLen)
+
+	// Create the channel for the goroutines to get tasks from.
+	// This is either a standard unbuffered channel, or a
+	// "virtual" unlimited length channel.  Usin a fixed length
+	// buffered channel doesn't help here, as there is no good
+	// way to predict a good buffer size.
+	var ssend chan<- string
+	var srecv <-chan string
+	if *unlimitedChan {
+		uc := NewUnlimitedStringChannel(0)
+		ssend = uc.sender()
+		srecv = uc.receiver()
+	} else {
+		search := make(chan string)
+		ssend = search
+		srecv = search
+	}
 	var wg sync.WaitGroup
 	for i := 0; i < *concurrency; i++ {
 		wg.Add(1)
-		go func(tasks <-chan string) {
+		go func() {
 			defer wg.Done()
 
-			for rec := range tasks {
+			for rec := range srecv {
 				sr := SearchRecord{url: rec}
 				sr.processLink(ctx, wf)
 			}
-		}(search)
+		}()
 	}
 
 	// The function definition for the main processing loop.
@@ -135,18 +151,23 @@ func (wf *WordFinder) run(ctx context.Context) {
 				}
 				visited[link] = true
 
-				// Every link sent into the "task"
-				// channel adds one to the counter.
-				//  The loop decremnts the count by one
-				// at the end of each iteration.
+				// Every link sent into the "task" channel adds
+				// one to the counter.  The loop decremnts the
+				// count by one at the end of each iteration.
 				cnt++
-				select {
-				case tasks <- link:
-				default:
-					link := link
-					go func() {
-						tasks <- link
-					}()
+				if *unlimitedChan {
+					// Using the unlimited buffering channel.
+					tasks <- link
+				} else {
+					// Standard channel.  Use goroutine if blocked.
+					select {
+					case tasks <- link:
+					default:
+						link := link
+						go func() {
+							tasks <- link
+						}()
+					}
 				}
 			}
 		}
@@ -160,7 +181,7 @@ func (wf *WordFinder) run(ctx context.Context) {
 	// Block, waiting for the loop to finish, as there is nothing
 	// else we need to do here.  We could trivially transform this into
 	// a goroutine invocation if needed.
-	loopFunc(search, wf.filter)
+	loopFunc(ssend, wf.filter)
 
 	// As above, all processing is done, so close the other channel.
 	close(wf.filter)
