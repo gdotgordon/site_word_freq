@@ -1,11 +1,12 @@
 package main
 
-// An unlimited length buffered chan(string).  Caller is
-// provided send and receive channels which shoud be
-// used as any other channel.  Go has no generics, so
-// the only way to generalize this is to use interface{},
-// which makes things inconvenient for the caller.  Might
-// consider rewriting it that way if I end up liking this :-)
+// An unlimited length buffered chan(string).  Caller is provided
+// send and receive channels which shoud be used as any other channel.
+// Go has no generics, so the only way to generalize this is to use
+// interface{}, which makes things inconvenient for the caller.  Might
+// consider rewriting it that way if I end up liking this approach :-)
+// This excellent blog post was the seed for this:
+// https://medium.com/capital-one-developers/building-an-unbounded-channel-in-go-789e175cd2cd
 type unlimitedStringChannel struct {
 	snd  chan (string)
 	rcv  chan (string)
