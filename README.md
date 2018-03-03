@@ -51,7 +51,7 @@ solutions provided here.  One is that if all send channels are blocked, the bloc
 send request is put off in a goroutine, so we can keep the process moving.  The other
 option implemented is to use a "virtual" channel that implements an unlimited
 buffer size (using fixed channel buffer sizes is not that useful, because we can't
-determine a good buffer size that will never block (which gets us back to the potential
+determine a good buffer size that will never block which gets us back to the potential
 for deadlock).
 
 The blocked goroutines and unlimited channel are basically solving the problem the same
