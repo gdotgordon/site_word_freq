@@ -90,9 +90,7 @@ func (wf *WordFinder) run(ctx context.Context) {
 	var ssend chan<- string
 	var srecv <-chan string
 	if *unlimitedChan {
-		uc := NewUnlimitedStringChannel(0)
-		ssend = uc.sender()
-		srecv = uc.receiver()
+		ssend, srecv = unlimitedStringChannel(0)
 	} else {
 		search := make(chan string)
 		ssend = search

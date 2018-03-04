@@ -7,9 +7,7 @@ import (
 )
 
 func TestUnlimitedBuffering(t *testing.T) {
-	usc := NewUnlimitedStringChannel(0)
-	rdr := usc.receiver()
-	snd := usc.sender()
+	snd, rdr := unlimitedStringChannel(0)
 	lcnt := 100
 	gcnt := 50
 
