@@ -111,6 +111,8 @@ func (wf *WordFinder) run(ctx context.Context) {
 
 	// The function definition for the main processing loop.
 	loopFunc := func(tasks chan<- string, filter <-chan []string) {
+		var tot uint
+		limit := *iter
 
 		// Prime the pump by feeding start url into the work channel.
 		tasks <- wf.startURL.String()
@@ -127,6 +129,11 @@ func (wf *WordFinder) run(ctx context.Context) {
 			// we are guaranteed to get more reads,  and the
 			// interrupt-handling preserves this invariant.
 			l := <-filter
+			tot++
+			if limit > 0 && tot > limit {
+				wf.interrupt = true
+				continue
+			}
 
 			// If the user cancelled, swallow the new urls.
 			select {

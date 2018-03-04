@@ -47,6 +47,7 @@ var (
 	maxLen = flag.Uint("max_len", 8,
 		"the maximum word length to track (0 => no limit)")
 	totWords  = flag.Uint("tot_words", 10, "show the top 'this many' words")
+	iter      = flag.Uint("iter", 0, "if > 0, stop ater this many iterations")
 	pprofPort = flag.Int("pprof_port", 0, "if non-zero, pprof server port")
 )
 
