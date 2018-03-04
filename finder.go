@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"runtime/pprof"
 	"sort"
 	"strings"
 	"sync"
@@ -175,6 +177,15 @@ func (wf *WordFinder) run(ctx context.Context) {
 					}
 				}
 			}
+		}
+
+		if *memprofile != "" {
+			f, err := os.Create(*memprofile)
+			if err != nil {
+				log.Fatal(err)
+			}
+			pprof.WriteHeapProfile(f)
+			f.Close()
 		}
 
 		// Note: due to the counting in the loop above, we know

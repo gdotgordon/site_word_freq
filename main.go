@@ -20,6 +20,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"runtime/pprof"
 	"strconv"
 	"sync"
 	"syscall"
@@ -46,9 +47,11 @@ var (
 		"minimum word length to track (0 => no limit)")
 	maxLen = flag.Uint("max_len", 8,
 		"the maximum word length to track (0 => no limit)")
-	totWords  = flag.Uint("tot_words", 10, "show the top 'this many' words")
-	iter      = flag.Uint("iter", 0, "if > 0, stop ater this many iterations")
-	pprofPort = flag.Int("pprof_port", 0, "if non-zero, pprof server port")
+	totWords   = flag.Uint("tot_words", 10, "show the top 'this many' words")
+	iter       = flag.Uint("iter", 0, "if > 0, stop ater this many iterations")
+	pprofPort  = flag.Int("pprof_port", 0, "if non-zero, pprof server port")
+	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+	memprofile = flag.String("memprofile", "", "write memory profile to this file")
 )
 
 // A formatter for messages intended for stdout.
@@ -85,6 +88,19 @@ func main() {
 			log.Println(http.ListenAndServe(
 				"localhost:"+strconv.Itoa(*pprofPort), nil))
 		}()
+	}
+
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
+	if *memprofile != "" && *cpuprofile != "" {
+		log.Fatal("Cannot profile CPU and memory at once.")
 	}
 
 	// We'll use escape sequences if stdout is not being redirected
