@@ -26,7 +26,7 @@ import (
 // total.  As each search record has its own error field, this
 //  us an organized way to catalog all the errors that occurred
 // in the processing.
-type SearchRecord struct {
+type searchRecord struct {
 	url string
 	err error
 }
@@ -45,7 +45,7 @@ var (
 
 // Read the url contents and parse the line to get embedded
 // text and extract links for future processing.
-func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
+func (sr searchRecord) processLink(ctx context.Context, wf *WordFinder) {
 	wf.fmtr.showStatusLine(sr.url, wf.interrupt)
 
 	// It is required that we write something to the
@@ -107,7 +107,7 @@ func (sr *SearchRecord) processLink(ctx context.Context, wf *WordFinder) {
 	}
 }
 
-func (sr *SearchRecord) processHTML(ctx context.Context,
+func (sr searchRecord) processHTML(ctx context.Context,
 	r io.Reader, target string) (map[string]int, []string) {
 
 	var baseURL *url.URL
@@ -228,7 +228,7 @@ func (sr *SearchRecord) processHTML(ctx context.Context,
 }
 
 // Take a swag at parsing the content as line-oriented text.
-func (sr *SearchRecord) processAsText(ctx context.Context,
+func (sr searchRecord) processAsText(ctx context.Context,
 	br *bufio.Reader) map[string]int {
 	wds := make(map[string]int)
 	for {

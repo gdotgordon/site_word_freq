@@ -20,7 +20,7 @@ import (
 // results to get the longest word at the end.
 type WordFinder struct {
 	words     map[string]int
-	errRecs   []*SearchRecord
+	errRecs   []searchRecord
 	target    string
 	startURL  *url.URL
 	filter    chan ([]string)
@@ -105,7 +105,7 @@ func (wf *WordFinder) run(ctx context.Context) {
 			defer wg.Done()
 
 			for rec := range srecv {
-				sr := SearchRecord{url: rec}
+				sr := searchRecord{url: rec}
 				sr.processLink(ctx, wf)
 			}
 		}()
@@ -211,7 +211,7 @@ func (wf *WordFinder) run(ctx context.Context) {
 // in the channel buffers or waiting goroutines, so this is a
 // time/sapce tradeoff, as merging the data here is fast.
 func (wf *WordFinder) addLinkData(ctx context.Context,
-	sr *SearchRecord, wds map[string]int, links []string) {
+	sr searchRecord, wds map[string]int, links []string) {
 	if (wds != nil && len(wds) > 0) || links != nil {
 		wf.mu.Lock()
 
@@ -259,7 +259,7 @@ func (wf *WordFinder) getResults() []kvPair {
 
 // Returns the search records that contained errors or
 // nil if no errors occurred.
-func (wf *WordFinder) getErrors() []*SearchRecord {
+func (wf *WordFinder) getErrors() []searchRecord {
 	return wf.errRecs
 }
 
