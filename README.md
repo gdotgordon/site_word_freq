@@ -37,7 +37,7 @@ a single VM, and we need to be able to throttle the behavior of individual apps,
 be well-behaved VM denizens.
 
 
-## Back To Or Regularly Scheduled Program ...
+## Back To Our Regularly Scheduled Program ...
 This program finds the most frequently occurring words of a specified minimum length,
 and optionally a maximum length, for a given site.  It is essentially a web crawler
 that makes its best effort to stay within the hostname of the original site.
@@ -108,7 +108,7 @@ Well, it appears I was wrong, the unbuffered channel uses less memory as expecte
 faster.  I did some profiling, and here are some typical runs:
 
 ```
-\# GNU time command:
+GNU 'time' command:
 21.07u 0.87s 12.40r 115640kB bin/site_word_freq -unlimited_chan=false -iter=1000 http://www.cnn.com
 19.12u 0.83s 11.60r 97568kB bin/site_word_freq -unlimited_chan=true -iter=1000 http://www.cnn.com
 ```
