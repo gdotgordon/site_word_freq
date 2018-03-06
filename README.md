@@ -24,7 +24,7 @@ Language" book that presents a "counting" technique, wherein each request to sca
 a page read is sent one channel, and is balanced by a response from that page sent
 to another channel.  When the count of outstanding requests reaches 0, we are done.  To use
 this algorithm in a robust way, especially in the face of user or cloud-container based
-cancellation of the process required significantly refining the idea to make it bullet-proof.
+cancellation of the process, required significantly refining the idea to make it bullet-proof.
 
 Two final notes: to make the problem a little more interesting, I added two new requirements:
 the first is for the crawl to build a histogram of the most commonly occurring words it finds
@@ -34,7 +34,8 @@ between length 5 and 8 . I was always curious about stuff like that, so why not?
 Second requirement is that we use a fixed, but configurable number of goroutines.  This models
 a situation I have encountered in my work, where multiple containers from multiple apps are sharing
 a single VM, and we need to be able to throttle the behavior of individual apps, so they will
-be well-behaved VM denizens.
+be well-behaved VM denizens.  In addiiton, an app may want to limit resource usage, for example,
+network connections, and fixing the number of goroutines adresses this.
 
 
 ## Back To Our Regularly Scheduled Program ...
@@ -50,44 +51,42 @@ Usage: `crawl <web site> [-pprof_port <port num>] [more config options]`
 The well-known commercial websites are generally too large to viably crawl
 completely in reasonable time on a single-machine demo.  However, handlers
 for SIGINT and SIGTERM are installed that drain the existing work-in-progress,
-and display the results up to that point.  In fact, running with a large site
-is the best way to profile the execution of the code.  The program optionally
-starts a `pprof` HTTP server using the configured port for this purpose.
+and display the results up to that point.  For performance anlysis, the program
+optionally starts a `pprof` HTTP server using the configured port, and also 
+provides to flag to crawl a fixed number of pages and generate a memory or CPU
+profile from that.
 
 If you find a smaller site, the traversal will only take a few seconds, and
 proper completion of the algorithm can be verified (i.e. no deadlocked
 goroutines or writes on closed channels, etc.).
 
-The sequence of sites being visited is displayed on a single line, and
-if interrupted, the remaining length is displayed as the queue is drained.
-
 ## Architecture
-Architecturally the solution uses the following elements:
+The solution uses the following elements:
 - A configurable (via a flag) fixed number of HTML processing
-goroutines and two channels (as previously mentioned).
+goroutines and two channels (as previously described).
 
 - Rich error reporting per goroutine.  This is accomplished by
-sending a struct which contains an error field in addition to the
-input parameters into the task channel.  Using this technique, we
-can clearly sort out which errors are tied to which URLs.
+accumulating a list of failed page scans using structs containing
+an error field in addition to the input URL.  This lets us clearly
+sort out which errors are tied to which URLs.
 
 #### Aside: implications of using a fixed number of goroutines
 As it turns out, due to the fixed number of goroutines, there could be the
-potential for deadlock if additional steps aren't taken to ensure this can't
+potential for deadlock if additional steps aren't taken to ensure this won't
 happen.  The problem is that the work producers (scans of web pages for links)
 send an exponentially growing amount data back in to be processed into the same
-loop.  Thus it is theoretically possible for all the senders of new work to be blocked
-sending while waiting for new senders to be available!  There are two switchable
-solutions provided here.  One is that if all send channels are blocked, the blocking
-send request is put off in a goroutine, so we can keep the process moving.  The other
-option implemented is to use a "virtual" channel that implements an unlimited
-buffer size (using fixed channel buffer sizes is not that useful, because we can't
-determine a good buffer size that will never block which gets us back to the potential
-for deadlock).
+loop.  Thus it is theoretically possible for all the worker goroutines to be blocked
+sending their results while waiting for new workers to be available!  There are two
+solutions provided here, and either may be selected via an option.  The first solution
+is that if all send channels are blocked, the blocking send request is put off in a
+goroutine, so we can keep the process moving.  The other available option is to use a
+"virtual" channel that implements an unlimited buffer size.  Using fixed sized buffered
+channels is not useful here, because we can't determine a good buffer size that will
+never block, which gets us right back to the potential for deadlock.
 
 The blocked goroutines and unlimited channel are basically solving the problem the same
-way.  If we create a bunch of extra goroutines, these are basically stack frames waiting
-to be run, and due to the nature of Go, don't waste an OS thread.  Each stack frame
+way.  If we create some extra goroutines, these are basically stack frames waiting
+to be run, and due to the nature of Go, this doesn't waste an OS thread.  Each stack frame
 is something like 2K.  With the unlimited channel, each item only takes the size of a
 string held in a slice, but this entails the complexity and performance penalty of having
 to manage two channels (see `unlimitedStringChannel` in unlimited.go).  But either way, we
@@ -97,12 +96,12 @@ so the processing cycle is guaranteed to be able to continue.
 
 
 ## Implementation Notes
-This thing seems to run well enough.  The only question is whether the unlimited channel or
-pushing the blocked sends to goroutines performs better.  My gut feeling was that despite
-the ~2K penalty, the sleeping goroutine would be the winner, maybe using a little more memory,
-but taxing the system less than the unlimited channel, which requires an extra physical channel,
-and also loops around checking both of its internal channels in a `select`, both of which I thought
-would cause the system to be a little more taxed.
+This thing seems to run crisply and I've never observed it run out of memory.  The only question
+is whether the unlimited channel or pushing the blocked sends to goroutines performs better.  My 
+gut feeling was that despite the ~2K penalty, the sleeping goroutine would be the winner, maybe
+using a little more memory, but taxing the system less than the unlimited channel, which requires
+an extra physical channel, and also loops around checking both of its internal channels in a `select`,
+both of which I thought would cause the system to be a little more taxed.
 
 Well, it appears I was wrong, the unbuffered channel uses less memory as expected, and is marginally
 faster.  I did some profiling, and here are some typical runs:
