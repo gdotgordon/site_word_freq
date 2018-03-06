@@ -122,7 +122,7 @@ using goroutines:
  flat  flat%   sum%        cum   cum%
 22321.89kB 53.95% 53.95% 32858.75kB 79.42%  main.(*SearchRecord).processHTML
  8980.54kB 21.71% 75.66%  8980.54kB 21.71%  main.convertUnicodeEscapes
- <b>4097.50kB  9.90% 85.56%  4097.50kB  9.90%  runtime.malg*</b>
+ <b>4097.50kB  9.90% 85.56%  4097.50kB  9.90%  runtime.malg</b>
  1825.78kB  4.41% 89.97%  1825.78kB  4.41%  main.(*WordFinder).addLinkData
  1056.33kB  2.55% 92.53%  1056.33kB  2.55%  crypto/tls.(*block).reserve
  1024.09kB  2.48% 95.00%  1024.09kB  2.48%  main.(*WordFinder).run.func2.1
@@ -136,7 +136,7 @@ using unlimited channels:
 10032.48kB 24.86% 83.60% 10032.48kB 24.86%  main.convertUnicodeEscapes
  1825.78kB  4.52% 88.12%  1825.78kB  4.52%  main.(*WordFinder).addLinkData
  1025.69kB  2.54% 90.67%  1025.69kB  2.54%  encoding/pem.Decode
-  <b>583.01kB  1.44% 92.11%   583.01kB  1.44%  main.unlimitedStringChannel.func1*</b>
+  <b>583.01kB  1.44% 92.11%   583.01kB  1.44%  main.unlimitedStringChannel.func1</b>
   578.66kB  1.43% 93.54%  1106.83kB  2.74%  golang.org/x/net/html.(*Tokenizer).readByte
   532.26kB  1.32% 94.86%   532.26kB  1.32%  regexp.(*bitState).push (inline)
   528.17kB  1.31% 96.17%   528.17kB  1.31%  compress/flate.(*dictDecoder).init (inline)
