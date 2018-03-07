@@ -75,13 +75,14 @@ As it turns out, due to the fixed number of goroutines, there could be the
 potential for deadlock if additional steps aren't taken to ensure this won't
 happen.  The problem is that the work producers (scans of web pages for links)
 send an exponentially growing amount data back in to be processed into the same
-loop.  Thus it is theoretically possible for all the worker goroutines to be blocked
-sending their results while waiting for new workers to be available!  There are two
-solutions provided here, and either may be selected via an option.  The first solution
-is that if all send channels are blocked, the blocking send request is put off in a
-goroutine, so we can keep the process moving.  The other available option is to use a
-"virtual" channel that implements an unlimited buffer size.  Using fixed sized buffered
-channels is not useful here, because we can't determine a good buffer size that will
+loop.  Thus it is entirely possible that all the worker goroutines could be
+blocked sending their results while waiting for new workers to be available!
+
+Two solutions are provided in the code, and either may be selected via a flag.
+The first option is that if a send to the channel would block, the send is put off
+to a goroutine, so we can keep the process moving.  The other available option
+is to use a "virtual" channel that implements an unlimited buffer size.  Using fixed sized
+buffered channels is not useful here, because we can't determine a good buffer size that will
 never block, which gets us right back to the potential for deadlock.
 
 The blocked goroutines and unlimited channel are basically solving the problem the same
