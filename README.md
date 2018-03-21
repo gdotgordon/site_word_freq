@@ -21,7 +21,7 @@ especially when doing something with potentially unbounded growth, such as web c
 
 After a bit of searching, I found a technique in Donovan and Kernighan's "The Go Programming
 Language" book that presents a "counting" technique, wherein each request to scan
-a page at a given URL is sent to one channel, abd this is balanced by a response from that scan sent
+a page at a given URL is sent to one channel, and this is balanced by a response from that scan sent
 to another channel.  When the count of outstanding requests reaches 0, we are done.  To use
 this algorithm in a robust way, especially in the face of user or cloud-container based
 cancellation of the process, required significantly refining the idea to make it bullet-proof.
