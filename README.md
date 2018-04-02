@@ -31,11 +31,10 @@ the first is for the crawl to build a histogram of the most commonly occurring w
 in the text, as it parses the HTML for _hrefs_.  So by default, it finds the most common words
 between length 5 and 8 . I was always curious about stuff like that, so why not?
 
-Second requirement is that we use a fixed, but configurable number of goroutines.  This models
-a situation I have encountered in my work, where multiple containers from multiple apps are sharing
-a single VM, and we need to be able to throttle the behavior of individual apps, so they will
-be well-behaved VM denizens.  In addiiton, an app may want to limit resource usage, for example,
-network connections, and fixing the number of goroutines adresses this.
+Second requirement is that we use a fixed, but configurable number of goroutines.  While one can
+configure/limit the number of CPUs to schedule goroutines on in a program, an app may want to limit
+resource usage, for example, network connections.  Fixing the number of goroutines adresses this,
+so that goroutines not currently bound to an OS thread won't be holding a resource.
 
 
 ## Back To Our Regularly Scheduled Program ...
