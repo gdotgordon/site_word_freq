@@ -8,7 +8,7 @@ package main
 // if I end up liking this approach :-)
 // This excellent blog post was the seed for this:
 // https://medium.com/capital-one-developers/building-an-unbounded-channel-in-go-789e175cd2cd
-func unlimitedStringChannel(capacity int) (chan (string), chan (string)) {
+func unlimitedStringChannel(capacity int) (chan<- string, <-chan string) {
 	snd := make(chan (string))
 	rcv := make(chan (string))
 	data := make([]string, 0, capacity)
