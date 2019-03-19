@@ -1,12 +1,12 @@
 package main
 
-// Function implementing an unlimited length buffered chan(string).
+// Function implementing an unlimited length buffered chan string.
 // Caller is provided send and receive channels which shoud be used
 // as any other channel. Go has no generics, so the only way to
 // generalize this is to use chan (interface{}), which makes things
 // inconvenient for the caller.  Might consider rewriting it that way
 // if I end up liking this approach :-)
-// This excellent blog post was the seed for this:
+// This excellent blog post was the seed for this
 // https://medium.com/capital-one-developers/building-an-unbounded-channel-in-go-789e175cd2cd
 func unlimitedStringChannel(capacity int) (chan<- string, <-chan string) {
 	snd := make(chan (string))
