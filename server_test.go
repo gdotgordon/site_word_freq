@@ -82,6 +82,7 @@ func TestServer(t *testing.T) {
 	}
 }
 
+// Test locating unicode.
 func TestConvertUnicode(t *testing.T) {
 	b := []byte{'A', '\\', 'u', '0', '0', '2', '2', 'H',
 		'\\', 'u', '2', '3', '1', '8', 'Z'}
