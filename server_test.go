@@ -8,6 +8,7 @@ import (
 	"testing"
 )
 
+// Mock server
 func TestServer(t *testing.T) {
 	firstPage := `
 	<!DOCTYPE html>
