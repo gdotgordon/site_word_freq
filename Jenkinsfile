@@ -1,6 +1,6 @@
 pipeline {
     tools {
-        go 'go-1.12'
+        go 'Go installer'
     }
     agent { docker { image 'golang' } }
     stages {
