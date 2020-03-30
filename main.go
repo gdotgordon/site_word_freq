@@ -90,6 +90,10 @@ func main() {
 		}()
 	}
 
+	if *memprofile != "" && *cpuprofile != "" {
+		log.Fatal("Cannot profile CPU and memory at once.")
+	}
+
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
 		if err != nil {
@@ -97,10 +101,6 @@ func main() {
 		}
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
-	}
-
-	if *memprofile != "" && *cpuprofile != "" {
-		log.Fatal("Cannot profile CPU and memory at once.")
 	}
 
 	// We'll use escape sequences if stdout is not being redirected
