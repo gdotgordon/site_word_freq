@@ -58,7 +58,7 @@ func (sr searchRecord) processLink(ctx context.Context, wf *WordFinder) {
 	}()
 
 	if wf.interrupt {
-		// Short circuit traversal if cleaning up.
+		// Short circuit traversal if we are cleaning up.
 		return
 	}
 	req, err := http.NewRequest(http.MethodGet, sr.url, nil)
